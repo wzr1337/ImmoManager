@@ -105,6 +105,7 @@ class NichtUmlagefaehigCostType(IntEnum):
     MODERNISIERUNG = 103
     LEERSTANDSKOSTEN = 104
     SONSTIGE_NICHT_UMLAGEFAEHIG = 105
+    FINANZIERUNGSKOSTEN = 106
 
 
 NON_APPORTIONABLE_COST_TYPES: dict[NichtUmlagefaehigCostType, CostTypeMeta] = {
