@@ -88,4 +88,51 @@ COST_TYPES: dict[BetrKVCostType, CostTypeMeta] = {
 
 
 def label_for(code: int) -> str:
-    return COST_TYPES[BetrKVCostType(code)].label_de
+    if is_apportionable_code(code):
+        return COST_TYPES[BetrKVCostType(code)].label_de
+    return NON_APPORTIONABLE_COST_TYPES[NichtUmlagefaehigCostType(code)].label_de
+
+
+# Costs that must NOT enter a tenant's Abrechnung -- they stay with the landlord
+# regardless of any distribution key (docs/legal-requirements.md §2: "Anything not
+# on [the 17-position] list ... is not apportionable and stays with the landlord").
+# Tracked for the landlord's own bookkeeping (expense records, tax purposes), never
+# summed into calc_engine's cost_totals_by_type. Numbered from 101 to keep the code
+# space visually distinct from the 1-17 BetrKV catalog at a glance.
+class NichtUmlagefaehigCostType(IntEnum):
+    INSTANDHALTUNG_REPARATUR = 101
+    VERWALTUNGSKOSTEN = 102
+    MODERNISIERUNG = 103
+    LEERSTANDSKOSTEN = 104
+    SONSTIGE_NICHT_UMLAGEFAEHIG = 105
+
+
+NON_APPORTIONABLE_COST_TYPES: dict[NichtUmlagefaehigCostType, CostTypeMeta] = {
+    NichtUmlagefaehigCostType.INSTANDHALTUNG_REPARATUR: CostTypeMeta(
+        NichtUmlagefaehigCostType.INSTANDHALTUNG_REPARATUR, "Instandhaltung / Reparatur"
+    ),
+    NichtUmlagefaehigCostType.VERWALTUNGSKOSTEN: CostTypeMeta(
+        NichtUmlagefaehigCostType.VERWALTUNGSKOSTEN, "Verwaltungskosten"
+    ),
+    NichtUmlagefaehigCostType.MODERNISIERUNG: CostTypeMeta(
+        NichtUmlagefaehigCostType.MODERNISIERUNG, "Modernisierung"
+    ),
+    NichtUmlagefaehigCostType.LEERSTANDSKOSTEN: CostTypeMeta(
+        NichtUmlagefaehigCostType.LEERSTANDSKOSTEN, "Leerstandskosten"
+    ),
+    NichtUmlagefaehigCostType.SONSTIGE_NICHT_UMLAGEFAEHIG: CostTypeMeta(
+        NichtUmlagefaehigCostType.SONSTIGE_NICHT_UMLAGEFAEHIG, "Sonstige nicht umlagefähige Kosten"
+    ),
+}
+
+
+def is_apportionable_code(code: int) -> bool:
+    return 1 <= code <= 17
+
+
+def all_cost_type_choices() -> list[tuple[int, str, bool]]:
+    """Returns (code, label, is_apportionable) for every known cost type — the
+    combined list a UI (CLI or bot) should offer when categorizing an invoice."""
+    choices = [(c.value, meta.label_de, True) for c, meta in COST_TYPES.items()]
+    choices += [(c.value, meta.label_de, False) for c, meta in NON_APPORTIONABLE_COST_TYPES.items()]
+    return choices

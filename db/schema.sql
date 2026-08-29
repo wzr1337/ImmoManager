@@ -119,7 +119,15 @@ CREATE TABLE IF NOT EXISTS property_sonstige_items (
 CREATE TABLE IF NOT EXISTS cost_entries (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     property_id INTEGER NOT NULL REFERENCES properties (id) ON DELETE RESTRICT,
-    cost_type_code INTEGER NOT NULL CHECK (cost_type_code BETWEEN 1 AND 17),
+    -- 1-17 = apportionable § 2 BetrKV cost type (config/cost_types.py:BetrKVCostType);
+    -- 101+ = non-apportionable (repairs, admin, ...) --
+    -- config/cost_types.py:NichtUmlagefaehigCostType. is_apportionable mirrors
+    -- which range cost_type_code is in, kept as its own column so a query never
+    -- has to duplicate that range check.
+    cost_type_code INTEGER NOT NULL CHECK (
+        (cost_type_code BETWEEN 1 AND 17) OR (cost_type_code BETWEEN 101 AND 199)
+    ),
+    is_apportionable INTEGER NOT NULL DEFAULT 1 CHECK (is_apportionable IN (0, 1)),
     billing_year INTEGER NOT NULL,
     amount_cents INTEGER NOT NULL,
     vendor_name TEXT,
