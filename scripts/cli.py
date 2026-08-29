@@ -127,9 +127,25 @@ def cmd_add_contract(conn, args: argparse.Namespace) -> None:
                 else None
             ),
             persons_count=args.persons,
+            deposit_cents=round(Decimal(args.deposit) * 100) if args.deposit else 0,
         ),
     )
     print(f"Contract created: id={contract_id}")
+
+
+def cmd_set_deposit(conn, args: argparse.Namespace) -> None:
+    contract_repo.set_deposit(conn, args.contract_id, round(Decimal(args.deposit) * 100))
+    print(f"Contract {args.contract_id} deposit set to {args.deposit} EUR.")
+
+
+def cmd_return_deposit(conn, args: argparse.Namespace) -> None:
+    contract_repo.return_deposit(
+        conn,
+        args.contract_id,
+        round(Decimal(args.amount) * 100),
+        date.fromisoformat(args.date),
+    )
+    print(f"Contract {args.contract_id}: {args.amount} EUR deposit returned on {args.date}.")
 
 
 def cmd_add_invoice(conn, args: argparse.Namespace) -> None:
@@ -255,7 +271,19 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--monthly-advance", required=True, help="Nebenkosten Vorauszahlung, EUR")
     p.add_argument("--monthly-advance-heating", help="Heizkosten Vorauszahlung, EUR")
     p.add_argument("--persons", type=int)
+    p.add_argument("--deposit", help="Kaution, EUR")
     p.set_defaults(func=cmd_add_contract)
+
+    p = sub.add_parser("set-deposit")
+    p.add_argument("--contract-id", type=int, required=True)
+    p.add_argument("--deposit", required=True, help="Kaution held, EUR")
+    p.set_defaults(func=cmd_set_deposit)
+
+    p = sub.add_parser("return-deposit")
+    p.add_argument("--contract-id", type=int, required=True)
+    p.add_argument("--amount", required=True, help="Amount actually returned, EUR")
+    p.add_argument("--date", required=True, help="YYYY-MM-DD")
+    p.set_defaults(func=cmd_return_deposit)
 
     p = sub.add_parser("add-invoice")
     p.add_argument("--property-id", type=int, required=True)

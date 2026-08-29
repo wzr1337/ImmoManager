@@ -35,6 +35,9 @@ class Contract:
     monthly_vorauszahlung_nebenkosten_cents: int
     monthly_vorauszahlung_heizkosten_cents: int | None = None
     persons_count: int | None = None
+    deposit_cents: int = 0
+    deposit_returned_cents: int | None = None
+    deposit_returned_date: date | None = None
 
 
 @dataclass(frozen=True)

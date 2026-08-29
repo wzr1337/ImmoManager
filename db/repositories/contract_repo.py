@@ -16,6 +16,13 @@ def _row_to_model(row: sqlite3.Row) -> Contract:
         monthly_vorauszahlung_nebenkosten_cents=row["monthly_vorauszahlung_nebenkosten_cents"],
         monthly_vorauszahlung_heizkosten_cents=row["monthly_vorauszahlung_heizkosten_cents"],
         persons_count=row["persons_count"],
+        deposit_cents=row["deposit_cents"],
+        deposit_returned_cents=row["deposit_returned_cents"],
+        deposit_returned_date=(
+            date.fromisoformat(row["deposit_returned_date"])
+            if row["deposit_returned_date"]
+            else None
+        ),
     )
 
 
@@ -25,8 +32,8 @@ def create(conn: sqlite3.Connection, contract: Contract) -> int:
         INSERT INTO contracts
             (unit_id, tenant_id, start_date, end_date,
              monthly_vorauszahlung_nebenkosten_cents, monthly_vorauszahlung_heizkosten_cents,
-             persons_count)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
+             persons_count, deposit_cents)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         """,
         (
             contract.unit_id,
@@ -36,6 +43,7 @@ def create(conn: sqlite3.Connection, contract: Contract) -> int:
             contract.monthly_vorauszahlung_nebenkosten_cents,
             contract.monthly_vorauszahlung_heizkosten_cents,
             contract.persons_count,
+            contract.deposit_cents,
         ),
     )
     conn.commit()
@@ -74,6 +82,32 @@ def end_contract(conn: sqlite3.Connection, contract_id: int, end_date: date) -> 
     conn.execute(
         "UPDATE contracts SET end_date = ?, updated_at = datetime('now') WHERE id = ?",
         (end_date.isoformat(), contract_id),
+    )
+    conn.commit()
+
+
+def set_deposit(conn: sqlite3.Connection, contract_id: int, deposit_cents: int) -> None:
+    """Backfills/corrects the Kaution amount held for a contract."""
+    conn.execute(
+        "UPDATE contracts SET deposit_cents = ?, updated_at = datetime('now') WHERE id = ?",
+        (deposit_cents, contract_id),
+    )
+    conn.commit()
+
+
+def return_deposit(
+    conn: sqlite3.Connection, contract_id: int, returned_cents: int, returned_date: date
+) -> None:
+    """Records the Kaution being paid back at move-out -- returned_cents may be
+    less than the held deposit_cents if damages were deducted (schema CHECK
+    enforces returned <= held)."""
+    conn.execute(
+        """
+        UPDATE contracts
+        SET deposit_returned_cents = ?, deposit_returned_date = ?, updated_at = datetime('now')
+        WHERE id = ?
+        """,
+        (returned_cents, returned_date.isoformat(), contract_id),
     )
     conn.commit()
 

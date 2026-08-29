@@ -90,9 +90,17 @@ CREATE TABLE IF NOT EXISTS contracts (
     monthly_vorauszahlung_nebenkosten_cents INTEGER NOT NULL DEFAULT 0,
     monthly_vorauszahlung_heizkosten_cents INTEGER,
     persons_count INTEGER,
+    -- Kaution (§ 551 BGB) -- out of scope for the Abrechnung math itself, but real
+    -- money the landlord must track and account for at move-out. deposit_cents is
+    -- what was received; deposit_returned_* is filled in when the tenancy ends,
+    -- which may be less than deposit_cents if damages were deducted.
+    deposit_cents INTEGER NOT NULL DEFAULT 0,
+    deposit_returned_cents INTEGER,
+    deposit_returned_date TEXT,
     created_at TEXT NOT NULL DEFAULT (datetime('now')),
     updated_at TEXT NOT NULL DEFAULT (datetime('now')),
-    CHECK (end_date IS NULL OR end_date >= start_date)
+    CHECK (end_date IS NULL OR end_date >= start_date),
+    CHECK (deposit_returned_cents IS NULL OR deposit_returned_cents <= deposit_cents)
 );
 
 CREATE INDEX IF NOT EXISTS idx_contracts_unit ON contracts (unit_id);
