@@ -124,6 +124,9 @@ NON_APPORTIONABLE_COST_TYPES: dict[NichtUmlagefaehigCostType, CostTypeMeta] = {
     NichtUmlagefaehigCostType.SONSTIGE_NICHT_UMLAGEFAEHIG: CostTypeMeta(
         NichtUmlagefaehigCostType.SONSTIGE_NICHT_UMLAGEFAEHIG, "Sonstige nicht umlagefähige Kosten"
     ),
+    NichtUmlagefaehigCostType.FINANZIERUNGSKOSTEN: CostTypeMeta(
+        NichtUmlagefaehigCostType.FINANZIERUNGSKOSTEN, "Finanzierungskosten (Zinsen)"
+    ),
 }
 
 
