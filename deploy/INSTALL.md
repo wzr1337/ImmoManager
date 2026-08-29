@@ -45,9 +45,11 @@ running on the same host (plain venv + systemd, `User=pi`, no containerization).
    ```bash
    rclone config
    ```
-   Create a `gdrive` remote (type `drive`, complete the OAuth flow in a browser --
-   `rclone config` will print a URL if run over SSH without a local browser), then a
-   `gdrive-crypt` remote (type `crypt`, remote `gdrive:immomanager-backup`,
+   Create a `gdrive` remote (type `drive`, **scope `drive.file`** -- restricts the
+   OAuth grant to only files rclone itself creates, so it structurally cannot touch
+   anything else in your Drive; complete the OAuth flow in a browser, or `rclone
+   config` will print a URL if run over SSH without a local browser), then a
+   `grdrivecrypt` remote (type `crypt`, remote `gdrive:immomanager-backup`,
    filename encryption `standard`, and a password you store safely -- there's no
    recovery without it). See [backup/backup.sh](../backup/backup.sh).
 

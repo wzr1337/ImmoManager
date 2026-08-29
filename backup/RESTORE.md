@@ -8,7 +8,7 @@ templates) from the encrypted Google Drive backup onto a fresh or repaired Pi.
 - A working install through [deploy/INSTALL.md](../deploy/INSTALL.md) step 5
   (i.e. `.env` recreated from your own secure backup of it -- see that doc for why
   `.env` isn't included in this backup).
-- `rclone config` already set up with the `gdrive-crypt` remote and its password
+- `rclone config` already set up with the `grdrivecrypt` remote and its password
   (the same one used when the backup was created -- there is no recovery without it).
 
 ## Steps
@@ -17,7 +17,7 @@ templates) from the encrypted Google Drive backup onto a fresh or repaired Pi.
 cd /home/pi/source/ImmoManager
 sudo systemctl stop immomanager-bot   # avoid writes mid-restore
 
-rclone sync gdrive-crypt:immomanager-backup data/
+rclone sync grdrivecrypt:current data/
 
 sqlite3 data/immomanager.db "PRAGMA integrity_check;"   # expect: ok
 
@@ -36,6 +36,6 @@ overwritten or deleted was moved into a dated history folder instead of being
 destroyed.
 
 ```bash
-rclone lsf gdrive-crypt:immomanager-backup-history/    # list available dates
-rclone copy gdrive-crypt:immomanager-backup-history/2026-03-05/path/to/file data/path/to/file
+rclone lsf grdrivecrypt:_history/    # list available dates
+rclone copy grdrivecrypt:_history/2026-03-05/path/to/file data/path/to/file
 ```

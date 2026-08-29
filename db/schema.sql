@@ -55,6 +55,12 @@ CREATE TABLE IF NOT EXISTS units (
     unit_type TEXT NOT NULL CHECK (unit_type IN ('apartment', 'garage')),
     wohnflaeche_m2 NUMERIC,
     heated INTEGER NOT NULL DEFAULT 0 CHECK (heated IN (0, 1)),
+    -- WEG Miteigentumsanteil, expressed per mille (e.g. 7.92 for "7,92/1000" as
+    -- stated in a Grundbuch/Teilungserklärung) -- the unit's fixed share of the
+    -- whole building, independent of how many of the building's other units (not
+    -- owned by this landlord) are tracked here. Only meaningful for a condo/WEG
+    -- unit; NULL for a landlord-owned-outright building.
+    miteigentumsanteil_promille NUMERIC,
     created_at TEXT NOT NULL DEFAULT (datetime('now')),
     updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );

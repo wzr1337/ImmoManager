@@ -82,9 +82,15 @@ def cmd_add_unit(conn, args: argparse.Namespace) -> None:
             unit_type=args.type,
             wohnflaeche_m2=Decimal(args.wohnflaeche) if args.wohnflaeche else None,
             heated=args.heated,
+            miteigentumsanteil_promille=Decimal(args.mea) if args.mea else None,
         ),
     )
     print(f"Unit created: id={unit_id}")
+
+
+def cmd_set_unit_mea(conn, args: argparse.Namespace) -> None:
+    property_repo.set_unit_mea(conn, args.unit_id, Decimal(args.mea))
+    print(f"Unit {args.unit_id} Miteigentumsanteil set to {args.mea}/1000.")
 
 
 def cmd_add_tenant(conn, args: argparse.Namespace) -> None:
@@ -222,7 +228,13 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--type", choices=["apartment", "garage"], required=True)
     p.add_argument("--wohnflaeche", help="m²")
     p.add_argument("--heated", action="store_true")
+    p.add_argument("--mea", help="WEG Miteigentumsanteil per mille, e.g. 7.92 for 7,92/1000")
     p.set_defaults(func=cmd_add_unit)
+
+    p = sub.add_parser("set-unit-mea")
+    p.add_argument("--unit-id", type=int, required=True)
+    p.add_argument("--mea", required=True, help="WEG Miteigentumsanteil per mille, e.g. 7.92")
+    p.set_defaults(func=cmd_set_unit_mea)
 
     p = sub.add_parser("add-tenant")
     p.add_argument("--first-name", required=True)

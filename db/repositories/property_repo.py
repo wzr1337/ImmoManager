@@ -41,6 +41,11 @@ def _row_to_unit(row: sqlite3.Row) -> Unit:
             Decimal(str(row["wohnflaeche_m2"])) if row["wohnflaeche_m2"] is not None else None
         ),
         heated=bool(row["heated"]),
+        miteigentumsanteil_promille=(
+            Decimal(str(row["miteigentumsanteil_promille"]))
+            if row["miteigentumsanteil_promille"] is not None
+            else None
+        ),
     )
 
 
@@ -94,8 +99,9 @@ def list_all(conn: sqlite3.Connection) -> list[Property]:
 def add_unit(conn: sqlite3.Connection, unit: Unit) -> int:
     cur = conn.execute(
         """
-        INSERT INTO units (property_id, label, unit_type, wohnflaeche_m2, heated)
-        VALUES (?, ?, ?, ?, ?)
+        INSERT INTO units (property_id, label, unit_type, wohnflaeche_m2, heated,
+                            miteigentumsanteil_promille)
+        VALUES (?, ?, ?, ?, ?, ?)
         """,
         (
             unit.property_id,
@@ -103,6 +109,11 @@ def add_unit(conn: sqlite3.Connection, unit: Unit) -> int:
             unit.unit_type,
             str(unit.wohnflaeche_m2) if unit.wohnflaeche_m2 is not None else None,
             int(unit.heated),
+            (
+                str(unit.miteigentumsanteil_promille)
+                if unit.miteigentumsanteil_promille is not None
+                else None
+            ),
         ),
     )
     conn.commit()
@@ -112,6 +123,14 @@ def add_unit(conn: sqlite3.Connection, unit: Unit) -> int:
 def get_unit(conn: sqlite3.Connection, unit_id: int) -> Unit | None:
     row = conn.execute("SELECT * FROM units WHERE id = ?", (unit_id,)).fetchone()
     return _row_to_unit(row) if row else None
+
+
+def set_unit_mea(conn: sqlite3.Connection, unit_id: int, mea_promille: Decimal) -> None:
+    conn.execute(
+        "UPDATE units SET miteigentumsanteil_promille = ?, updated_at = datetime('now') WHERE id = ?",
+        (str(mea_promille), unit_id),
+    )
+    conn.commit()
 
 
 def list_units(conn: sqlite3.Connection, property_id: int) -> list[Unit]:

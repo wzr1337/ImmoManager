@@ -39,3 +39,6 @@ class Unit:
     unit_type: UnitType
     wohnflaeche_m2: Decimal | None
     heated: bool = False
+    # WEG Miteigentumsanteil per mille (e.g. 7.92 for "7,92/1000"), for a condo/WEG
+    # unit's fixed share of the whole building. See db/schema.sql.
+    miteigentumsanteil_promille: Decimal | None = None
