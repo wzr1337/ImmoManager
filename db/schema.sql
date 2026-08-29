@@ -215,3 +215,23 @@ CREATE TABLE IF NOT EXISTS billing_run_statements (
 
 CREATE INDEX IF NOT EXISTS idx_billing_run_statements_run
     ON billing_run_statements (billing_run_id);
+
+-- Loan/financing ledger, sourced from Kontoauszüge. Never apportionable, never fed
+-- to calc_engine -- purely landlord bookkeeping (interest is a Werbungskosten
+-- deduction on Anlage V, Tilgung/principal is not, hence tracked as separate
+-- columns rather than one lump cost_entries row). See models/financing.py.
+CREATE TABLE IF NOT EXISTS loan_payments (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    property_id INTEGER NOT NULL REFERENCES properties (id) ON DELETE RESTRICT,
+    payment_date TEXT NOT NULL,
+    interest_cents INTEGER NOT NULL DEFAULT 0,
+    principal_cents INTEGER NOT NULL DEFAULT 0,
+    balance_after_cents INTEGER NOT NULL,
+    lender TEXT,
+    loan_account TEXT,
+    notes TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_loan_payments_property_date
+    ON loan_payments (property_id, payment_date);

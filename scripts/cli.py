@@ -18,11 +18,13 @@ from config.settings import load_settings
 from db.connection import connect
 from db.repositories import (
     contract_repo,
+    financing_repo,
     invoice_repo,
     landlord_repo,
     property_repo,
     tenant_repo,
 )
+from models.financing import LoanPayment
 from models.landlord import LandlordProfile
 from models.property import Property, Unit
 from models.tenant import Contract, Tenant
@@ -205,6 +207,36 @@ def cmd_list_invoices(conn, args: argparse.Namespace) -> None:
         )
 
 
+def cmd_add_loan_payment(conn, args: argparse.Namespace) -> None:
+    payment_id = financing_repo.create(
+        conn,
+        LoanPayment(
+            id=0,
+            property_id=args.property_id,
+            payment_date=date.fromisoformat(args.date),
+            interest_cents=round(Decimal(args.interest) * 100),
+            principal_cents=round(Decimal(args.principal) * 100) if args.principal else 0,
+            balance_after_cents=round(Decimal(args.balance_after) * 100),
+            lender=args.lender,
+            loan_account=args.loan_account,
+            notes=args.notes,
+        ),
+    )
+    print(f"Loan payment recorded: id={payment_id}")
+
+
+def cmd_list_loan_payments(conn, args: argparse.Namespace) -> None:
+    total_interest = Decimal(0)
+    for p in financing_repo.list_for_property(conn, args.property_id):
+        total_interest += Decimal(p.interest_cents) / 100
+        print(
+            f"[{p.id}] {p.payment_date}: Zinsen={p.interest_cents / 100:.2f} "
+            f"Tilgung={p.principal_cents / 100:.2f} Saldo danach={p.balance_after_cents / 100:.2f} "
+            f"({p.lender or ''})"
+        )
+    print(f"\nGesamtzinsen (alle Jahre): {total_interest:.2f} EUR")
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     sub = parser.add_subparsers(dest="command", required=True)
@@ -306,6 +338,21 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--property-id", type=int, required=True)
     p.add_argument("--billing-year", type=int, required=True)
     p.set_defaults(func=cmd_list_invoices)
+
+    p = sub.add_parser("add-loan-payment")
+    p.add_argument("--property-id", type=int, required=True)
+    p.add_argument("--date", required=True, help="YYYY-MM-DD (Wert-Datum from the Kontoauszug)")
+    p.add_argument("--interest", required=True, help="Sollzins for this period, EUR")
+    p.add_argument("--principal", help="Tilgung for this period, EUR (default 0)")
+    p.add_argument("--balance-after", required=True, help="Resulting Kontostand, EUR")
+    p.add_argument("--lender", help="e.g. 'Volksbank BraWo'")
+    p.add_argument("--loan-account", help="Kontonummer")
+    p.add_argument("--notes")
+    p.set_defaults(func=cmd_add_loan_payment)
+
+    p = sub.add_parser("list-loan-payments")
+    p.add_argument("--property-id", type=int, required=True)
+    p.set_defaults(func=cmd_list_loan_payments)
 
     return parser
 
