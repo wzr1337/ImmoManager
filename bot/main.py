@@ -24,6 +24,10 @@ from bot.handlers.pending import PENDING_HANDLER
 from config.settings import load_settings
 
 logging.basicConfig(format="%(asctime)s %(levelname)s %(name)s: %(message)s", level=logging.INFO)
+# httpx logs the full request URL at INFO -- for the Telegram Bot API, the bot
+# token IS the URL path (https://api.telegram.org/bot<TOKEN>/...), so leaving this
+# at INFO leaks the token into every log line. CLAUDE.md: never log API keys.
+logging.getLogger("httpx").setLevel(logging.WARNING)
 logger = logging.getLogger(__name__)
 
 
