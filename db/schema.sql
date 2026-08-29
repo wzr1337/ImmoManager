@@ -235,3 +235,28 @@ CREATE TABLE IF NOT EXISTS loan_payments (
 
 CREATE INDEX IF NOT EXISTS idx_loan_payments_property_date
     ON loan_payments (property_id, payment_date);
+
+-- Fixed terms for scripts/roll_loan_ledger.py's monthly projection -- one row per
+-- loan (keyed by the property its ledger entries are recorded under).
+CREATE TABLE IF NOT EXISTS loan_terms (
+    property_id INTEGER PRIMARY KEY REFERENCES properties (id) ON DELETE RESTRICT,
+    lender TEXT NOT NULL,
+    loan_account TEXT NOT NULL,
+    annual_interest_rate_pct NUMERIC NOT NULL,
+    monthly_principal_cents INTEGER NOT NULL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+-- Proportional allocation of a loan across every property it actually financed
+-- (see models/financing.py:LoanPropertyShare). share_promille is typically each
+-- property's own unit's miteigentumsanteil_promille when the loan financed a
+-- multi-unit condo purchase in one transaction.
+CREATE TABLE IF NOT EXISTS loan_property_shares (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    loan_account TEXT NOT NULL,
+    property_id INTEGER NOT NULL REFERENCES properties (id) ON DELETE RESTRICT,
+    share_promille NUMERIC NOT NULL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    UNIQUE (loan_account, property_id)
+);

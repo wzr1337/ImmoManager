@@ -1,0 +1,13 @@
+[Unit]
+Description=Run ImmoManager loan ledger rollover daily
+
+[Timer]
+# Runs daily rather than trying to land exactly on month-end: the script itself
+# is idempotent (a no-op once the current month already has an entry) and catches
+# up any backlog in one run, so daily is simply the most failure-tolerant choice
+# (robust to the Pi being off around the "real" rollover date).
+OnCalendar=daily
+Persistent=true
+
+[Install]
+WantedBy=timers.target

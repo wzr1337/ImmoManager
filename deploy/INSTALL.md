@@ -58,10 +58,17 @@ running on the same host (plain venv + systemd, `User=pi`, no containerization).
    sudo cp deploy/systemd/immomanager-bot.service /etc/systemd/system/
    sudo cp deploy/systemd/immomanager-backup.service /etc/systemd/system/
    sudo cp deploy/systemd/immomanager-backup.timer /etc/systemd/system/
+   sudo cp deploy/systemd/immomanager-loan-rollover.service /etc/systemd/system/
+   sudo cp deploy/systemd/immomanager-loan-rollover.timer /etc/systemd/system/
    sudo systemctl daemon-reload
    sudo systemctl enable --now immomanager-bot.service
    sudo systemctl enable --now immomanager-backup.timer
+   sudo systemctl enable --now immomanager-loan-rollover.timer
    ```
+   The loan rollover only does anything for properties with `scripts.cli
+   set-loan-terms` configured -- see `models/financing.py`. It projects estimated
+   monthly interest/Tilgung entries (clearly marked `GESCHAETZT`) until the real
+   Kontoauszug is entered in its place.
 
 8. **Verify**:
    ```bash

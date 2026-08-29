@@ -24,7 +24,7 @@ from db.repositories import (
     property_repo,
     tenant_repo,
 )
-from models.financing import LoanPayment
+from models.financing import LoanPayment, LoanTerms
 from models.landlord import LandlordProfile
 from models.property import Property, Unit
 from models.tenant import Contract, Tenant
@@ -237,6 +237,41 @@ def cmd_list_loan_payments(conn, args: argparse.Namespace) -> None:
     print(f"\nGesamtzinsen (alle Jahre): {total_interest:.2f} EUR")
 
 
+def cmd_set_loan_terms(conn, args: argparse.Namespace) -> None:
+    financing_repo.set_terms(
+        conn,
+        LoanTerms(
+            property_id=args.property_id,
+            lender=args.lender,
+            loan_account=args.loan_account,
+            annual_interest_rate_pct=Decimal(args.rate),
+            monthly_principal_cents=round(Decimal(args.monthly_principal) * 100),
+        ),
+    )
+    print(
+        f"Loan terms set for property {args.property_id}: {args.rate}% p.a., {args.monthly_principal} EUR/month Tilgung."
+    )
+
+
+def cmd_set_loan_share(conn, args: argparse.Namespace) -> None:
+    financing_repo.set_property_share(
+        conn, args.loan_account, args.property_id, Decimal(args.share)
+    )
+    print(f"Property {args.property_id} share of '{args.loan_account}' set to {args.share}/1000.")
+
+
+def cmd_show_loan_allocation(conn, args: argparse.Namespace) -> None:
+    allocations = financing_repo.allocate_interest_by_property(conn, args.loan_account, args.year)
+    if not allocations:
+        print("No shares configured for this loan_account -- use set-loan-share first.")
+        return
+    for property_id, interest in sorted(allocations.items()):
+        prop = property_repo.get(conn, property_id)
+        label = prop.label if prop else f"property {property_id}"
+        print(f"{label}: {interest:.2f} EUR Zinsen ({args.year})")
+    print(f"\nGesamt: {sum(allocations.values()):.2f} EUR")
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     sub = parser.add_subparsers(dest="command", required=True)
@@ -353,6 +388,25 @@ def build_parser() -> argparse.ArgumentParser:
     p = sub.add_parser("list-loan-payments")
     p.add_argument("--property-id", type=int, required=True)
     p.set_defaults(func=cmd_list_loan_payments)
+
+    p = sub.add_parser("set-loan-terms")
+    p.add_argument("--property-id", type=int, required=True)
+    p.add_argument("--lender", required=True)
+    p.add_argument("--loan-account", required=True)
+    p.add_argument("--rate", required=True, help="Annual interest rate, %% (e.g. 4.20)")
+    p.add_argument("--monthly-principal", required=True, help="Fixed monthly Tilgung, EUR")
+    p.set_defaults(func=cmd_set_loan_terms)
+
+    p = sub.add_parser("set-loan-share")
+    p.add_argument("--loan-account", required=True)
+    p.add_argument("--property-id", type=int, required=True)
+    p.add_argument("--share", required=True, help="Miteigentumsanteil per mille, e.g. 7.92")
+    p.set_defaults(func=cmd_set_loan_share)
+
+    p = sub.add_parser("show-loan-allocation")
+    p.add_argument("--loan-account", required=True)
+    p.add_argument("--year", type=int, required=True)
+    p.set_defaults(func=cmd_show_loan_allocation)
 
     return parser
 

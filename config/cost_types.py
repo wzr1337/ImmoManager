@@ -106,6 +106,7 @@ class NichtUmlagefaehigCostType(IntEnum):
     LEERSTANDSKOSTEN = 104
     SONSTIGE_NICHT_UMLAGEFAEHIG = 105
     FINANZIERUNGSKOSTEN = 106
+    BEWIRTUNGSKOSTEN = 107
 
 
 NON_APPORTIONABLE_COST_TYPES: dict[NichtUmlagefaehigCostType, CostTypeMeta] = {
@@ -126,6 +127,9 @@ NON_APPORTIONABLE_COST_TYPES: dict[NichtUmlagefaehigCostType, CostTypeMeta] = {
     ),
     NichtUmlagefaehigCostType.FINANZIERUNGSKOSTEN: CostTypeMeta(
         NichtUmlagefaehigCostType.FINANZIERUNGSKOSTEN, "Finanzierungskosten (Zinsen)"
+    ),
+    NichtUmlagefaehigCostType.BEWIRTUNGSKOSTEN: CostTypeMeta(
+        NichtUmlagefaehigCostType.BEWIRTUNGSKOSTEN, "Bewirtungskosten"
     ),
 }
 
