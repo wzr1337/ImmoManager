@@ -23,7 +23,9 @@ from db.repositories import (
     landlord_repo,
     property_repo,
     tenant_repo,
+    wealth_repo,
 )
+from docgen.format import format_wealth_summary
 from models.financing import LoanPayment, LoanTerms
 from models.landlord import LandlordProfile
 from models.property import Property, Unit
@@ -272,6 +274,26 @@ def cmd_show_loan_allocation(conn, args: argparse.Namespace) -> None:
     print(f"\nGesamt: {sum(allocations.values()):.2f} EUR")
 
 
+def cmd_set_purchase_price(conn, args: argparse.Namespace) -> None:
+    property_repo.set_purchase_price(conn, args.property_id, round(Decimal(args.price) * 100))
+    print(f"Property {args.property_id} purchase price set to {args.price} EUR.")
+
+
+def cmd_set_cash_balance(conn, args: argparse.Namespace) -> None:
+    wealth_repo.add_cash_snapshot(
+        conn,
+        round(Decimal(args.balance) * 100),
+        date.fromisoformat(args.date) if args.date else date.today(),
+        notes=args.notes,
+    )
+    print(f"Cash balance snapshot recorded: {args.balance} EUR.")
+
+
+def cmd_show_wealth(conn, args: argparse.Namespace) -> None:
+    summary = wealth_repo.compute_wealth_summary(conn)
+    print(format_wealth_summary(summary))
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     sub = parser.add_subparsers(dest="command", required=True)
@@ -407,6 +429,20 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--loan-account", required=True)
     p.add_argument("--year", type=int, required=True)
     p.set_defaults(func=cmd_show_loan_allocation)
+
+    p = sub.add_parser("set-purchase-price")
+    p.add_argument("--property-id", type=int, required=True)
+    p.add_argument("--price", required=True, help="Kaufpreis, EUR")
+    p.set_defaults(func=cmd_set_purchase_price)
+
+    p = sub.add_parser("set-cash-balance")
+    p.add_argument("--balance", required=True, help="Current cash/checking balance, EUR")
+    p.add_argument("--date", help="YYYY-MM-DD (default: today)")
+    p.add_argument("--notes")
+    p.set_defaults(func=cmd_set_cash_balance)
+
+    p = sub.add_parser("show-wealth")
+    p.set_defaults(func=cmd_show_wealth)
 
     return parser
 

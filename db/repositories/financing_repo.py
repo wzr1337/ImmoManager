@@ -154,6 +154,27 @@ def get_property_shares(conn: sqlite3.Connection, loan_account: str) -> list[Loa
     ]
 
 
+def _allocate_by_shares(shares: list[LoanPropertyShare], total: Decimal) -> dict[int, Decimal]:
+    """Proportional split with cent-exact rounding reconciliation, same principle
+    as calc_engine.apportionment.apportion_by_weights (kept separate rather than
+    reused directly -- calc_engine must stay free of any DB-adjacent imports)."""
+    total_promille = sum(s.share_promille for s in shares)
+    if total_promille == 0:
+        return {}
+
+    allocations = {
+        s.property_id: (total * s.share_promille / total_promille).quantize(
+            CENT, rounding=ROUND_HALF_UP
+        )
+        for s in shares
+    }
+    residual = total.quantize(CENT) - sum(allocations.values())
+    if residual != 0:
+        largest = max(allocations, key=lambda p: allocations[p])
+        allocations[largest] += residual
+    return allocations
+
+
 def allocate_interest_by_property(
     conn: sqlite3.Connection, loan_account: str, year: int
 ) -> dict[int, Decimal]:
@@ -173,21 +194,26 @@ def allocate_interest_by_property(
         """,
         (loan_account, f"{year}-01-01", f"{year}-12-31"),
     ).fetchone()
-    total_interest = Decimal(row["total"]) / 100
-    total_promille = sum(s.share_promille for s in shares)
-    if total_promille == 0:
-        return {}
+    return _allocate_by_shares(shares, Decimal(row["total"]) / 100)
 
-    allocations = {
-        s.property_id: (total_interest * s.share_promille / total_promille).quantize(
-            CENT, rounding=ROUND_HALF_UP
-        )
-        for s in shares
-    }
-    # Reconcile rounding so allocations sum exactly to total_interest, same
-    # principle as calc_engine.apportionment.apportion_by_weights.
-    residual = total_interest.quantize(CENT) - sum(allocations.values())
-    if residual != 0:
-        largest = max(allocations, key=lambda p: allocations[p])
-        allocations[largest] += residual
-    return allocations
+
+def current_liability_by_property(conn: sqlite3.Connection) -> dict[int, Decimal]:
+    """Current outstanding loan balance per property (EUR), for the /wealth
+    command. For a loan with configured loan_property_shares (e.g. a flat + its
+    garage bought together), the latest balance is split by share_promille across
+    every property it financed; a loan with no shares configured attributes its
+    full balance to the single property its loan_terms/ledger is recorded under."""
+    result: dict[int, Decimal] = {}
+    for terms in list_all_terms(conn):
+        latest = get_latest_payment(conn, terms.property_id)
+        if latest is None:
+            continue
+        balance = Decimal(latest.balance_after_cents) / 100
+
+        shares = get_property_shares(conn, terms.loan_account)
+        if shares:
+            for property_id, amount in _allocate_by_shares(shares, balance).items():
+                result[property_id] = result.get(property_id, Decimal(0)) + amount
+        else:
+            result[terms.property_id] = result.get(terms.property_id, Decimal(0)) + balance
+    return result

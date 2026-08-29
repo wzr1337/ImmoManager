@@ -28,6 +28,7 @@ def _row_to_property(row: sqlite3.Row) -> Property:
         co2_building_tier_override=row["co2_building_tier_override"],
         co2_override_reason=row["co2_override_reason"],
         gradtagstabelle_ref=row["gradtagstabelle_ref"],
+        purchase_price_cents=row["purchase_price_cents"],
     )
 
 
@@ -94,6 +95,16 @@ def get(conn: sqlite3.Connection, property_id: int) -> Property | None:
 def list_all(conn: sqlite3.Connection) -> list[Property]:
     rows = conn.execute("SELECT * FROM properties ORDER BY label").fetchall()
     return [_row_to_property(r) for r in rows]
+
+
+def set_purchase_price(
+    conn: sqlite3.Connection, property_id: int, purchase_price_cents: int
+) -> None:
+    conn.execute(
+        "UPDATE properties SET purchase_price_cents = ?, updated_at = datetime('now') WHERE id = ?",
+        (purchase_price_cents, property_id),
+    )
+    conn.commit()
 
 
 def add_unit(conn: sqlite3.Connection, unit: Unit) -> int:

@@ -21,6 +21,11 @@ from bot.handlers.commands import CALLBACK_HANDLERS, COMMAND_HANDLERS
 from bot.handlers.invoice_intake import invoice_conversation
 from bot.handlers.mieterwechsel import mieterwechsel_conversation
 from bot.handlers.pending import PENDING_HANDLER
+from bot.handlers.wealth import (
+    WEALTH_CALLBACK_HANDLER,
+    WEALTH_COMMAND_HANDLER,
+    update_cash_conversation,
+)
 from config.settings import load_settings
 
 logging.basicConfig(format="%(asctime)s %(levelname)s %(name)s: %(message)s", level=logging.INFO)
@@ -52,6 +57,9 @@ def build_application() -> Application:
     for handler in CALLBACK_HANDLERS:
         application.add_handler(handler)
     application.add_handler(PENDING_HANDLER)
+    application.add_handler(WEALTH_COMMAND_HANDLER)
+    application.add_handler(WEALTH_CALLBACK_HANDLER)
+    application.add_handler(update_cash_conversation)
     application.add_handler(mieterwechsel_conversation)
     application.add_handler(invoice_conversation)
 

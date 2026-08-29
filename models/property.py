@@ -25,6 +25,10 @@ class Property:
     co2_building_tier_override: int | None = None
     co2_override_reason: str | None = None
     gradtagstabelle_ref: str = "default"
+    # Acquisition cost (Kaufpreis), for the /wealth net-equity view -- not a current
+    # market value estimate, just what was paid. Nullable: most Nebenkosten data
+    # entry doesn't need this, only wealth tracking does.
+    purchase_price_cents: int | None = None
 
     @property
     def address(self) -> str:

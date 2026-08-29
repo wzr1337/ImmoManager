@@ -44,6 +44,9 @@ CREATE TABLE IF NOT EXISTS properties (
     ),
     co2_override_reason TEXT,
     gradtagstabelle_ref TEXT NOT NULL DEFAULT 'default',
+    -- Kaufpreis (acquisition cost), for the /wealth net-equity view -- not a
+    -- current market value estimate. NULL where unknown/not entered.
+    purchase_price_cents INTEGER,
     created_at TEXT NOT NULL DEFAULT (datetime('now')),
     updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
@@ -260,3 +263,17 @@ CREATE TABLE IF NOT EXISTS loan_property_shares (
     created_at TEXT NOT NULL DEFAULT (datetime('now')),
     UNIQUE (loan_account, property_id)
 );
+
+-- Manually-entered point-in-time cash/checking balance -- no bank API exists, so
+-- this is only ever as fresh as the last update. The most recent row is "current"
+-- for the /wealth command. See models/wealth.py.
+CREATE TABLE IF NOT EXISTS cash_balance_snapshots (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    balance_cents INTEGER NOT NULL,
+    as_of_date TEXT NOT NULL,
+    notes TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_cash_balance_snapshots_date
+    ON cash_balance_snapshots (as_of_date);

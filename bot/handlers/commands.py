@@ -20,6 +20,7 @@ TOP_MENU = InlineKeyboardMarkup(
     [
         [InlineKeyboardButton("Properties", callback_data="props")],
         [InlineKeyboardButton("Tenants", callback_data="tenants")],
+        [InlineKeyboardButton("Wealth", callback_data="wealth")],
         [InlineKeyboardButton("Pending invoices", callback_data="pending")],
     ]
 )
