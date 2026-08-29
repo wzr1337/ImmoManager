@@ -60,6 +60,24 @@ def list_for_property(conn: sqlite3.Connection, property_id: int) -> list[Contra
     return [_row_to_model(r) for r in rows]
 
 
+def list_for_tenant(conn: sqlite3.Connection, tenant_id: int) -> list[Contract]:
+    rows = conn.execute(
+        "SELECT * FROM contracts WHERE tenant_id = ? ORDER BY start_date DESC", (tenant_id,)
+    ).fetchall()
+    return [_row_to_model(r) for r in rows]
+
+
+def end_contract(conn: sqlite3.Connection, contract_id: int, end_date: date) -> None:
+    """Mieterwechsel step 1: close out the outgoing tenant's contract. The incoming
+    tenant then gets a new contract row via create() -- contracts are never mutated
+    to change tenant, only closed and replaced, so history stays intact."""
+    conn.execute(
+        "UPDATE contracts SET end_date = ?, updated_at = datetime('now') WHERE id = ?",
+        (end_date.isoformat(), contract_id),
+    )
+    conn.commit()
+
+
 def active_for_unit_in_period(
     conn: sqlite3.Connection, unit_id: int, period_start: date, period_end: date
 ) -> list[Contract]:

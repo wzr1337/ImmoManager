@@ -14,6 +14,7 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
     "pytest>=8.0.0",
+    "pytest-asyncio>=0.24.0",
     "ruff>=0.6.0",
     "black>=24.0.0",
 ]
@@ -38,7 +39,11 @@ target-version = "py311"
 # Decimal(50)) for visual consistency across the codebase, given how much money
 # arithmetic this project does — not worth the churn/inconsistency of "only quote
 # non-integers".
-ignore = ["FURB157"]
+# DTZ011: date.today() is correct here -- this is a single-landlord, single-timezone
+# bot dealing in calendar dates (billing years, contract dates), not instants; a
+# tz-aware datetime.now(tz=...).date() would add ceremony without changing behavior.
+ignore = ["FURB157", "DTZ011"]
 
 [tool.pytest.ini_options]
-testpaths = ["calc_engine/tests", "tests"]
+testpaths = ["calc_engine/tests", "docgen/tests", "tests"]
+asyncio_mode = "auto"

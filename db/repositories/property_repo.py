@@ -109,6 +109,11 @@ def add_unit(conn: sqlite3.Connection, unit: Unit) -> int:
     return cur.lastrowid
 
 
+def get_unit(conn: sqlite3.Connection, unit_id: int) -> Unit | None:
+    row = conn.execute("SELECT * FROM units WHERE id = ?", (unit_id,)).fetchone()
+    return _row_to_unit(row) if row else None
+
+
 def list_units(conn: sqlite3.Connection, property_id: int) -> list[Unit]:
     rows = conn.execute(
         "SELECT * FROM units WHERE property_id = ? ORDER BY label", (property_id,)
