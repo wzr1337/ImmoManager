@@ -1,0 +1,11 @@
+[Unit]
+Description=ImmoManager encrypted backup to Google Drive
+
+[Service]
+Type=oneshot
+User=pi
+WorkingDirectory=/home/pi/source/ImmoManager
+EnvironmentFile=/home/pi/source/ImmoManager/.env
+ExecStart=/home/pi/source/ImmoManager/backup/backup.sh
+StandardOutput=append:/home/pi/source/ImmoManager/logs/backup.log
+StandardError=append:/home/pi/source/ImmoManager/logs/backup-error.log
