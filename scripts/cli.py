@@ -20,6 +20,7 @@ from db.repositories import (
     contract_repo,
     financing_repo,
     invoice_repo,
+    kassenbuch_repo,
     landlord_repo,
     property_repo,
     tenant_repo,
@@ -294,6 +295,35 @@ def cmd_show_wealth(conn, args: argparse.Namespace) -> None:
     print(format_wealth_summary(summary))
 
 
+def cmd_add_kassenbuch_entry(conn, args: argparse.Namespace) -> None:
+    entry_id = kassenbuch_repo.create(
+        conn,
+        property_id=args.property_id,
+        entry_date=date.fromisoformat(args.date),
+        position=args.position,
+        amount_patrick_cents=round(Decimal(args.patrick) * 100) if args.patrick else 0,
+        amount_sven_cents=round(Decimal(args.sven) * 100) if args.sven else 0,
+        amount_gemeinschaftskonto_cents=(
+            round(Decimal(args.gemeinschaftskonto) * 100) if args.gemeinschaftskonto else 0
+        ),
+        notes=args.notes,
+    )
+    print(f"Kassenbuch entry recorded: id={entry_id}")
+
+
+def cmd_list_kassenbuch(conn, args: argparse.Namespace) -> None:
+    total = Decimal(0)
+    for e in kassenbuch_repo.list_for_property(conn, args.property_id):
+        total += Decimal(e.amount_total_cents) / 100
+        print(
+            f"[{e.id}] {e.entry_date} {e.position}: "
+            f"Patrick={e.amount_patrick_cents / 100:.2f} Sven={e.amount_sven_cents / 100:.2f} "
+            f"Gemeinschaftskonto={e.amount_gemeinschaftskonto_cents / 100:.2f} "
+            f"Summe={e.amount_total_cents / 100:.2f}"
+        )
+    print(f"\nSaldo: {total:.2f} EUR")
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     sub = parser.add_subparsers(dest="command", required=True)
@@ -443,6 +473,23 @@ def build_parser() -> argparse.ArgumentParser:
 
     p = sub.add_parser("show-wealth")
     p.set_defaults(func=cmd_show_wealth)
+
+    p = sub.add_parser("add-kassenbuch-entry")
+    p.add_argument("--property-id", type=int, required=True)
+    p.add_argument("--date", required=True, help="YYYY-MM-DD")
+    p.add_argument("--position", required=True, help="Description, e.g. 'Notar'")
+    p.add_argument("--patrick", help="Amount paid by Patrick, EUR (negative for an outflow)")
+    p.add_argument("--sven", help="Amount paid by Sven, EUR (negative for an outflow)")
+    p.add_argument(
+        "--gemeinschaftskonto",
+        help="Amount paid from the joint account, EUR (negative for an outflow)",
+    )
+    p.add_argument("--notes")
+    p.set_defaults(func=cmd_add_kassenbuch_entry)
+
+    p = sub.add_parser("list-kassenbuch")
+    p.add_argument("--property-id", type=int, required=True)
+    p.set_defaults(func=cmd_list_kassenbuch)
 
     return parser
 

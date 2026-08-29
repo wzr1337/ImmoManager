@@ -277,3 +277,22 @@ CREATE TABLE IF NOT EXISTS cash_balance_snapshots (
 
 CREATE INDEX IF NOT EXISTS idx_cash_balance_snapshots_date
     ON cash_balance_snapshots (as_of_date);
+
+-- General cash ledger (Kassenbuch): every cash movement, with who actually paid
+-- it, not just Abrechnung-relevant invoices. See models/kassenbuch.py for how
+-- this relates to (and intentionally overlaps with) cost_entries.
+CREATE TABLE IF NOT EXISTS kassenbuch_entries (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    property_id INTEGER NOT NULL REFERENCES properties (id) ON DELETE RESTRICT,
+    entry_date TEXT NOT NULL,
+    position TEXT NOT NULL,
+    amount_patrick_cents INTEGER NOT NULL DEFAULT 0,
+    amount_sven_cents INTEGER NOT NULL DEFAULT 0,
+    amount_gemeinschaftskonto_cents INTEGER NOT NULL DEFAULT 0,
+    amount_total_cents INTEGER NOT NULL,
+    notes TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_kassenbuch_entries_property_date
+    ON kassenbuch_entries (property_id, entry_date);
