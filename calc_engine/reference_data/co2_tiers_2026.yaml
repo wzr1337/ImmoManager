@@ -1,0 +1,50 @@
+# CO2KostAufG 10-tier model (Anlage zu § 5 CO2KostAufG), residential buildings.
+# co2_per_sqm_max is the upper (exclusive) bound of the tier's CO2 kg/m2/year band;
+# null means "and above" (the top, open-ended tier).
+# Re-verify against the official published table each year before reuse —
+# see docs/legal-requirements.md §5. This file must not be silently reused across years.
+year: 2026
+price_corridor_eur_per_tonne:
+  min: 55
+  max: 65
+tiers:
+  - tier_number: 1
+    co2_per_sqm_max: 12
+    landlord_pct: 0
+    tenant_pct: 100
+  - tier_number: 2
+    co2_per_sqm_max: 17
+    landlord_pct: 10
+    tenant_pct: 90
+  - tier_number: 3
+    co2_per_sqm_max: 22
+    landlord_pct: 20
+    tenant_pct: 80
+  - tier_number: 4
+    co2_per_sqm_max: 27
+    landlord_pct: 30
+    tenant_pct: 70
+  - tier_number: 5
+    co2_per_sqm_max: 32
+    landlord_pct: 40
+    tenant_pct: 60
+  - tier_number: 6
+    co2_per_sqm_max: 37
+    landlord_pct: 50
+    tenant_pct: 50
+  - tier_number: 7
+    co2_per_sqm_max: 42
+    landlord_pct: 60
+    tenant_pct: 40
+  - tier_number: 8
+    co2_per_sqm_max: 47
+    landlord_pct: 70
+    tenant_pct: 30
+  - tier_number: 9
+    co2_per_sqm_max: 52
+    landlord_pct: 80
+    tenant_pct: 20
+  - tier_number: 10
+    co2_per_sqm_max: null
+    landlord_pct: 95
+    tenant_pct: 5

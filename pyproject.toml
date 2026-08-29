@@ -1,0 +1,44 @@
+[project]
+name = "immomanager"
+version = "0.1.0"
+description = "Nebenkostenabrechnung management for rented apartments and garages"
+requires-python = ">=3.11"
+dependencies = [
+    "python-telegram-bot>=21.0",
+    "anthropic>=0.40.0",
+    "docxtpl>=0.18.0",
+    "python-dotenv>=1.0.0",
+    "PyYAML>=6.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+    "ruff>=0.6.0",
+    "black>=24.0.0",
+]
+
+[build-system]
+requires = ["setuptools>=68.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["config*", "models*", "db*", "calc_engine*", "docgen*", "bot*", "scripts*"]
+
+[tool.black]
+line-length = 100
+target-version = ["py311"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+# FURB157: we deliberately always quote Decimal literals (Decimal("50"), not
+# Decimal(50)) for visual consistency across the codebase, given how much money
+# arithmetic this project does — not worth the churn/inconsistency of "only quote
+# non-integers".
+ignore = ["FURB157"]
+
+[tool.pytest.ini_options]
+testpaths = ["calc_engine/tests", "tests"]
