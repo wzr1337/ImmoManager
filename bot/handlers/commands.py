@@ -13,7 +13,7 @@ from telegram.ext import CallbackQueryHandler, CommandHandler, ContextTypes
 from bot.context import get_conn
 from calc_engine import statement as st
 from config.cost_types import label_for
-from db.repositories import contract_repo, invoice_repo, property_repo, tenant_repo
+from db.repositories import contract_repo, financing_repo, invoice_repo, property_repo, tenant_repo
 from docgen.format import fmt_money
 
 TOP_MENU = InlineKeyboardMarkup(
@@ -99,6 +99,15 @@ async def _show_property_detail(query, conn, property_id: int) -> None:
     lines.append("Units:")
     for u in units:
         lines.append(f"  [{u.id}] {u.label} ({u.unit_type}, {u.wohnflaeche_m2} m²)")
+
+    if property_.purchase_price_cents is not None:
+        price = Decimal(property_.purchase_price_cents) / 100
+        liability = financing_repo.current_liability_by_property(conn).get(property_id, Decimal(0))
+        paid_off = price - liability
+        lines.append("")
+        lines.append(f"Kaufpreis: {fmt_money(price)}")
+        lines.append(f"Restschuld: {fmt_money(liability)}")
+        lines.append(f"Bezahlt: {fmt_money(paid_off)}")
 
     year = date.today().year
     buttons = [

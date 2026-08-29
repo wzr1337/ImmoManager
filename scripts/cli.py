@@ -183,10 +183,19 @@ def cmd_add_invoice(conn, args: argparse.Namespace) -> None:
 
 
 def cmd_list_properties(conn, args: argparse.Namespace) -> None:
+    liabilities = financing_repo.current_liability_by_property(conn)
     for p in property_repo.list_all(conn):
         print(f"[{p.id}] {p.label} — {p.address} ({p.total_wohnflaeche_m2} m²)")
         for u in property_repo.list_units(conn, p.id):
             print(f"    [{u.id}] {u.label} ({u.unit_type}, {u.wohnflaeche_m2} m²)")
+        if p.purchase_price_cents is not None:
+            price = Decimal(p.purchase_price_cents) / 100
+            liability = liabilities.get(p.id, Decimal(0))
+            paid_off = price - liability
+            print(
+                f"    Kaufpreis: {price:.2f} EUR, Restschuld: {liability:.2f} EUR, "
+                f"bezahlt: {paid_off:.2f} EUR"
+            )
 
 
 def cmd_list_cost_types(conn, args: argparse.Namespace) -> None:
