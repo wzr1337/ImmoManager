@@ -104,8 +104,16 @@ def run(
             continue  # defensive; occupied_unit_ids is derived from active_contracts itself
 
         tenant = tenant_repo.get(conn, contract.tenant_id)
-        advance_payments_total = (
-            Decimal(contract.monthly_vorauszahlung_nebenkosten_cents) / 100 * 12
+        occupied, total_period_days = _occupied_days(period_start, period_end, contract)
+        # Vorauszahlung is owed only for the days the contract actually overlaps this
+        # billing period -- a tenant who moved in partway through the year hasn't owed
+        # (and in practice hasn't paid) a full 12 months of advances. Same flat
+        # day-proration as the cost side, so the two halves of the balance are on a
+        # consistent basis.
+        advance_payments_total = proration.prorate_flat(
+            Decimal(contract.monthly_vorauszahlung_nebenkosten_cents) / 100 * 12,
+            occupied,
+            total_period_days,
         )
 
         statement = st.build_betriebskosten_statement(
@@ -138,7 +146,6 @@ def run(
             document_type="betriebskosten",
         )
 
-        occupied, total_period_days = _occupied_days(period_start, period_end, contract)
         billing_repo.save_statement(
             conn,
             billing_run_id=run_id,
