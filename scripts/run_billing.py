@@ -116,6 +116,24 @@ def run(
             total_period_days,
         )
 
+        # § 556a BGB: only bill the cost types the Mietvertrag actually names as
+        # chargeable, not every apportionable cost_entries row on the property --
+        # a lease can (and often does) name a narrower set than full BetrKV.
+        allowed_codes = contract_repo.get_cost_type_allowlist(conn, contract.id)
+        if allowed_codes:
+            contract_cost_totals = {c: v for c, v in cost_totals.items() if c in allowed_codes}
+        else:
+            contract_cost_totals = cost_totals
+            print(
+                f"WARNING: no cost-type allow-list on file for contract {contract.id} "
+                f"({tenant.full_name}) -- billing all {len(cost_totals)} recorded cost "
+                "types. Verify this matches the actual Mietvertrag before sending "
+                "(scripts.cli set-contract-cost-types)."
+            )
+        contract_distribution_keys = {
+            code: distribution_key_by_type[code] for code in contract_cost_totals
+        }
+
         statement = st.build_betriebskosten_statement(
             tenant_name=tenant.full_name,
             tenant_address=tenant.address,
@@ -128,8 +146,8 @@ def run(
             contract_start=contract.start_date,
             contract_end=contract.end_date,
             tenant_unit_id=unit.id,
-            cost_totals_by_type=cost_totals,
-            distribution_key_by_type=distribution_key_by_type,
+            cost_totals_by_type=contract_cost_totals,
+            distribution_key_by_type=contract_distribution_keys,
             weight_maps=weight_maps,
             advance_payments_total=advance_payments_total,
         )

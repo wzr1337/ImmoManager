@@ -29,6 +29,16 @@ class Property:
     # market value estimate, just what was paid. Nullable: most Nebenkosten data
     # entry doesn't need this, only wealth tracking does.
     purchase_price_cents: int | None = None
+    # WEG-Verwalter contact info and other building-level reference data.
+    verwalter_name: str | None = None
+    verwalter_contact_person: str | None = None
+    verwalter_email: str | None = None
+    verwalter_phone: str | None = None
+    verwalter_address: str | None = None
+    weg_name: str | None = None
+    grundsteuer_objektnummer: str | None = None
+    grundsteuer_debitorennummer: str | None = None
+    grundsteuer_kassenzeichen: str | None = None
 
     @property
     def address(self) -> str:

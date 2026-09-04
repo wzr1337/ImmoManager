@@ -109,6 +109,23 @@ async def _show_property_detail(query, conn, property_id: int) -> None:
         lines.append(f"Restschuld: {fmt_money(liability)}")
         lines.append(f"Bezahlt: {fmt_money(paid_off)}")
 
+    if property_.weg_name or property_.verwalter_name:
+        lines.append("")
+        if property_.weg_name:
+            lines.append(f"WEG: {property_.weg_name}")
+        if property_.verwalter_name:
+            lines.append(f"Verwalter: {property_.verwalter_name}")
+            if property_.verwalter_contact_person:
+                lines.append(f"  Ansprechpartner: {property_.verwalter_contact_person}")
+            contact = " / ".join(
+                x for x in (property_.verwalter_email, property_.verwalter_phone) if x
+            )
+            if contact:
+                lines.append(f"  {contact}")
+
+    if property_.grundsteuer_objektnummer:
+        lines.append(f"Grundsteuer-Objektnr.: {property_.grundsteuer_objektnummer}")
+
     year = date.today().year
     buttons = [
         [

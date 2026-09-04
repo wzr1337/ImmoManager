@@ -198,6 +198,81 @@ def cmd_list_properties(conn, args: argparse.Namespace) -> None:
                 f"    Kaufpreis: {price:.2f} EUR, Restschuld: {liability:.2f} EUR, "
                 f"bezahlt: {paid_off:.2f} EUR"
             )
+        if p.verwalter_name or p.weg_name:
+            if p.weg_name:
+                print(f"    WEG: {p.weg_name}")
+            if p.verwalter_name:
+                print(f"    Verwalter: {p.verwalter_name}")
+                if p.verwalter_contact_person:
+                    print(f"      Ansprechpartner: {p.verwalter_contact_person}")
+                contact = " / ".join(x for x in (p.verwalter_email, p.verwalter_phone) if x)
+                if contact:
+                    print(f"      {contact}")
+        if (
+            p.grundsteuer_objektnummer
+            or p.grundsteuer_debitorennummer
+            or p.grundsteuer_kassenzeichen
+        ):
+            refs = ", ".join(
+                f"{label}={value}"
+                for label, value in (
+                    ("Objektnr", p.grundsteuer_objektnummer),
+                    ("Debitorennr", p.grundsteuer_debitorennummer),
+                    ("Kassenzeichen", p.grundsteuer_kassenzeichen),
+                )
+                if value
+            )
+            print(f"    Grundsteuer: {refs}")
+
+
+def cmd_set_property_meta(conn, args: argparse.Namespace) -> None:
+    property_repo.set_verwalter(
+        conn,
+        args.property_id,
+        name=args.verwalter_name,
+        contact_person=args.verwalter_contact,
+        email=args.verwalter_email,
+        phone=args.verwalter_phone,
+        address=args.verwalter_address,
+    )
+    property_repo.set_weg_grundsteuer_info(
+        conn,
+        args.property_id,
+        weg_name=args.weg_name,
+        objektnummer=args.grundsteuer_objektnummer,
+        debitorennummer=args.grundsteuer_debitorennummer,
+        kassenzeichen=args.grundsteuer_kassenzeichen,
+    )
+    print(f"Property {args.property_id} meta updated.")
+
+
+def cmd_set_contract_cost_types(conn, args: argparse.Namespace) -> None:
+    known_codes = {code for code, _label, apportionable in all_cost_type_choices() if apportionable}
+    try:
+        codes = [int(c.strip()) for c in args.cost_types.split(",") if c.strip()]
+    except ValueError:
+        raise SystemExit(f"invalid --cost-types list: {args.cost_types}")
+    unknown = [c for c in codes if c not in known_codes]
+    if unknown:
+        raise SystemExit(
+            f"unknown/non-apportionable cost type code(s): {unknown} — "
+            "run `list-cost-types` for valid apportionable codes (1-17)"
+        )
+    contract_repo.set_cost_type_allowlist(conn, args.contract_id, codes)
+    print(f"Contract {args.contract_id} cost-type allow-list set to: {codes}")
+
+
+def cmd_list_contract_cost_types(conn, args: argparse.Namespace) -> None:
+    codes = contract_repo.get_cost_type_allowlist(conn, args.contract_id)
+    if not codes:
+        print(
+            "No allow-list set — run_billing will warn and bill every recorded "
+            "cost type for this contract's property."
+        )
+        return
+    for code, label, _apportionable in all_cost_type_choices():
+        if code in codes:
+            print(f"  {code:>3}  {label}")
 
 
 def cmd_list_cost_types(conn, args: argparse.Namespace) -> None:
@@ -606,6 +681,32 @@ def build_parser() -> argparse.ArgumentParser:
         ],
     )
     p.set_defaults(func=cmd_list_documents)
+
+    p = sub.add_parser("set-property-meta")
+    p.add_argument("--property-id", type=int, required=True)
+    p.add_argument("--verwalter-name")
+    p.add_argument("--verwalter-contact", help="Ansprechpartner/in beim Verwalter")
+    p.add_argument("--verwalter-email")
+    p.add_argument("--verwalter-phone")
+    p.add_argument("--verwalter-address")
+    p.add_argument("--weg-name", help="e.g. 'Wohnungseigentümergemeinschaft Hochring 32, WOB'")
+    p.add_argument("--grundsteuer-objektnummer")
+    p.add_argument("--grundsteuer-debitorennummer")
+    p.add_argument("--grundsteuer-kassenzeichen")
+    p.set_defaults(func=cmd_set_property_meta)
+
+    p = sub.add_parser("set-contract-cost-types")
+    p.add_argument("--contract-id", type=int, required=True)
+    p.add_argument(
+        "--cost-types",
+        required=True,
+        help="comma-separated BetrKV codes actually named in the Mietvertrag, e.g. '8,9,11,13'",
+    )
+    p.set_defaults(func=cmd_set_contract_cost_types)
+
+    p = sub.add_parser("list-contract-cost-types")
+    p.add_argument("--contract-id", type=int, required=True)
+    p.set_defaults(func=cmd_list_contract_cost_types)
 
     return parser
 

@@ -47,6 +47,17 @@ CREATE TABLE IF NOT EXISTS properties (
     -- Kaufpreis (acquisition cost), for the /wealth net-equity view -- not a
     -- current market value estimate. NULL where unknown/not entered.
     purchase_price_cents INTEGER,
+    -- WEG-Verwalter contact info and other building-level reference data. NULL
+    -- where not entered; the bot/CLI skip these lines rather than show blanks.
+    verwalter_name TEXT,
+    verwalter_contact_person TEXT,
+    verwalter_email TEXT,
+    verwalter_phone TEXT,
+    verwalter_address TEXT,
+    weg_name TEXT,
+    grundsteuer_objektnummer TEXT,
+    grundsteuer_debitorennummer TEXT,
+    grundsteuer_kassenzeichen TEXT,
     created_at TEXT NOT NULL DEFAULT (datetime('now')),
     updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
@@ -119,6 +130,19 @@ CREATE TABLE IF NOT EXISTS contract_cost_type_keys (
     distribution_key TEXT NOT NULL CHECK (
         distribution_key IN ('wohnflaeche', 'personenzahl', 'verbrauch', 'stueck', 'mea', 'custom')
     ),
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    UNIQUE (contract_id, cost_type_code)
+);
+
+-- Per-contract allow-list of which Section 2 BetrKV cost types the Mietvertrag
+-- actually names as chargeable -- narrower than "generally BetrKV-apportionable".
+-- Empty (no rows) means "not yet checked against the lease" -- run_billing.py
+-- bills the full recorded set in that case but prints a loud warning, it does not
+-- silently assume everything is allowed just because nothing was entered.
+CREATE TABLE IF NOT EXISTS contract_cost_type_allowlist (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    contract_id INTEGER NOT NULL REFERENCES contracts (id) ON DELETE RESTRICT,
+    cost_type_code INTEGER NOT NULL CHECK (cost_type_code BETWEEN 1 AND 17),
     created_at TEXT NOT NULL DEFAULT (datetime('now')),
     UNIQUE (contract_id, cost_type_code)
 );

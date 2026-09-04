@@ -29,6 +29,15 @@ def _row_to_property(row: sqlite3.Row) -> Property:
         co2_override_reason=row["co2_override_reason"],
         gradtagstabelle_ref=row["gradtagstabelle_ref"],
         purchase_price_cents=row["purchase_price_cents"],
+        verwalter_name=row["verwalter_name"],
+        verwalter_contact_person=row["verwalter_contact_person"],
+        verwalter_email=row["verwalter_email"],
+        verwalter_phone=row["verwalter_phone"],
+        verwalter_address=row["verwalter_address"],
+        weg_name=row["weg_name"],
+        grundsteuer_objektnummer=row["grundsteuer_objektnummer"],
+        grundsteuer_debitorennummer=row["grundsteuer_debitorennummer"],
+        grundsteuer_kassenzeichen=row["grundsteuer_kassenzeichen"],
     )
 
 
@@ -103,6 +112,63 @@ def set_purchase_price(
     conn.execute(
         "UPDATE properties SET purchase_price_cents = ?, updated_at = datetime('now') WHERE id = ?",
         (purchase_price_cents, property_id),
+    )
+    conn.commit()
+
+
+def set_verwalter(
+    conn: sqlite3.Connection,
+    property_id: int,
+    *,
+    name: str | None = None,
+    contact_person: str | None = None,
+    email: str | None = None,
+    phone: str | None = None,
+    address: str | None = None,
+) -> None:
+    """Partial update -- only the given (non-None) fields are written, so setting
+    one field doesn't clobber the others already on file."""
+    fields = {
+        "verwalter_name": name,
+        "verwalter_contact_person": contact_person,
+        "verwalter_email": email,
+        "verwalter_phone": phone,
+        "verwalter_address": address,
+    }
+    fields = {k: v for k, v in fields.items() if v is not None}
+    if not fields:
+        return
+    set_clause = ", ".join(f"{col} = ?" for col in fields)
+    conn.execute(
+        f"UPDATE properties SET {set_clause}, updated_at = datetime('now') WHERE id = ?",
+        (*fields.values(), property_id),
+    )
+    conn.commit()
+
+
+def set_weg_grundsteuer_info(
+    conn: sqlite3.Connection,
+    property_id: int,
+    *,
+    weg_name: str | None = None,
+    objektnummer: str | None = None,
+    debitorennummer: str | None = None,
+    kassenzeichen: str | None = None,
+) -> None:
+    """Partial update, same convention as set_verwalter."""
+    fields = {
+        "weg_name": weg_name,
+        "grundsteuer_objektnummer": objektnummer,
+        "grundsteuer_debitorennummer": debitorennummer,
+        "grundsteuer_kassenzeichen": kassenzeichen,
+    }
+    fields = {k: v for k, v in fields.items() if v is not None}
+    if not fields:
+        return
+    set_clause = ", ".join(f"{col} = ?" for col in fields)
+    conn.execute(
+        f"UPDATE properties SET {set_clause}, updated_at = datetime('now') WHERE id = ?",
+        (*fields.values(), property_id),
     )
     conn.commit()
 

@@ -155,3 +155,25 @@ def get_cost_type_keys(conn: sqlite3.Connection, contract_id: int) -> list[Contr
         )
         for r in rows
     ]
+
+
+def set_cost_type_allowlist(
+    conn: sqlite3.Connection, contract_id: int, cost_type_codes: list[int]
+) -> None:
+    """Replace-all: the Mietvertrag's full named list is entered each time, not
+    added to incrementally -- avoids stale codes lingering after a lease amendment."""
+    conn.execute("DELETE FROM contract_cost_type_allowlist WHERE contract_id = ?", (contract_id,))
+    conn.executemany(
+        "INSERT INTO contract_cost_type_allowlist (contract_id, cost_type_code) VALUES (?, ?)",
+        [(contract_id, code) for code in cost_type_codes],
+    )
+    conn.commit()
+
+
+def get_cost_type_allowlist(conn: sqlite3.Connection, contract_id: int) -> list[int]:
+    rows = conn.execute(
+        "SELECT cost_type_code FROM contract_cost_type_allowlist "
+        "WHERE contract_id = ? ORDER BY cost_type_code",
+        (contract_id,),
+    ).fetchall()
+    return [r["cost_type_code"] for r in rows]
