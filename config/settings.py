@@ -27,11 +27,13 @@ class Settings:
     invoices_dir: Path = field(init=False)
     generated_dir: Path = field(init=False)
     templates_dir: Path = field(init=False)
+    documents_dir: Path = field(init=False)
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "invoices_dir", self.data_dir / "invoices")
         object.__setattr__(self, "generated_dir", self.data_dir / "generated")
         object.__setattr__(self, "templates_dir", self.data_dir / "templates")
+        object.__setattr__(self, "documents_dir", self.data_dir / "documents")
 
 
 def _parse_chat_ids(raw: str | None) -> frozenset[int]:

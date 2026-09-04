@@ -17,7 +17,9 @@ from config.cost_types import all_cost_type_choices, is_apportionable_code
 from config.settings import load_settings
 from db.connection import connect
 from db.repositories import (
+    billing_repo,
     contract_repo,
+    document_repo,
     financing_repo,
     invoice_repo,
     kassenbuch_repo,
@@ -333,6 +335,75 @@ def cmd_list_kassenbuch(conn, args: argparse.Namespace) -> None:
     print(f"\nSaldo: {total:.2f} EUR")
 
 
+def cmd_add_document(conn, args: argparse.Namespace) -> None:
+    import shutil
+
+    settings = load_settings()
+    src = Path(args.file).expanduser()
+    if not src.is_file():
+        raise SystemExit(f"file not found: {src}")
+
+    dest_dir = settings.documents_dir / str(args.property_id) / args.category
+    dest_dir.mkdir(parents=True, exist_ok=True)
+    dest = dest_dir / src.name
+    if dest.exists() and dest.resolve() != src.resolve():
+        stem, suffix = dest.stem, dest.suffix
+        n = 2
+        while dest.exists():
+            dest = dest_dir / f"{stem}-{n}{suffix}"
+            n += 1
+    if dest.resolve() != src.resolve():
+        shutil.copy2(src, dest)
+
+    document_id = document_repo.create(
+        conn,
+        property_id=args.property_id,
+        unit_id=args.unit_id,
+        category=args.category,
+        title=args.title or src.name,
+        billing_year=args.year,
+        file_path=str(dest),
+        notes=args.notes,
+        uploaded_by="cli",
+    )
+    print(f"Document recorded: id={document_id} path={dest}")
+
+
+def cmd_list_documents(conn, args: argparse.Namespace) -> None:
+    docs = document_repo.list_for_property(conn, args.property_id, category=args.category)
+    if docs:
+        print("Uploaded documents:")
+        current_category = None
+        for d in docs:
+            if d.category != current_category:
+                current_category = d.category
+                print(f"  {current_category}:")
+            year = f" ({d.billing_year})" if d.billing_year else ""
+            print(f"    [{d.id}] {d.title}{year} — {d.file_path}")
+    else:
+        print("Uploaded documents: none")
+
+    if args.category is not None:
+        return  # generated Abrechnungen aren't filed under a document category
+
+    runs = billing_repo.list_runs_for_property(conn, args.property_id)
+    generated = [
+        (run, stmt)
+        for run in runs
+        for stmt in billing_repo.list_statements_for_run(conn, run.id)
+        if stmt.document_path
+    ]
+    if generated:
+        print("Generated Abrechnungen:")
+        for run, stmt in generated:
+            print(
+                f"    [{stmt.id}] {run.billing_year} {stmt.document_type} "
+                f"(contract {stmt.contract_id}) — {stmt.document_path}"
+            )
+    else:
+        print("Generated Abrechnungen: none")
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     sub = parser.add_subparsers(dest="command", required=True)
@@ -499,6 +570,28 @@ def build_parser() -> argparse.ArgumentParser:
     p = sub.add_parser("list-kassenbuch")
     p.add_argument("--property-id", type=int, required=True)
     p.set_defaults(func=cmd_list_kassenbuch)
+
+    p = sub.add_parser("add-document")
+    p.add_argument("--property-id", type=int, required=True)
+    p.add_argument("--unit-id", type=int)
+    p.add_argument(
+        "--category",
+        required=True,
+        choices=["hausverwaltung", "grundsteuer", "versicherung", "behoerde", "sonstige"],
+    )
+    p.add_argument("--file", required=True, help="path to the document to file away")
+    p.add_argument("--title", help="default: the file's name")
+    p.add_argument("--year", type=int, help="billing year this document pertains to, if any")
+    p.add_argument("--notes")
+    p.set_defaults(func=cmd_add_document)
+
+    p = sub.add_parser("list-documents")
+    p.add_argument("--property-id", type=int, required=True)
+    p.add_argument(
+        "--category",
+        choices=["hausverwaltung", "grundsteuer", "versicherung", "behoerde", "sonstige"],
+    )
+    p.set_defaults(func=cmd_list_documents)
 
     return parser
 

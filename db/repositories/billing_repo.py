@@ -54,6 +54,14 @@ def get_run(conn: sqlite3.Connection, run_id: int) -> BillingRun | None:
     return _row_to_run(row) if row else None
 
 
+def list_runs_for_property(conn: sqlite3.Connection, property_id: int) -> list[BillingRun]:
+    rows = conn.execute(
+        "SELECT * FROM billing_runs WHERE property_id = ? ORDER BY billing_year",
+        (property_id,),
+    ).fetchall()
+    return [_row_to_run(r) for r in rows]
+
+
 def set_run_status(conn: sqlite3.Connection, run_id: int, status: str) -> None:
     conn.execute(
         "UPDATE billing_runs SET status = ?, updated_at = datetime('now') WHERE id = ?",

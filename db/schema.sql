@@ -296,3 +296,30 @@ CREATE TABLE IF NOT EXISTS kassenbuch_entries (
 
 CREATE INDEX IF NOT EXISTS idx_kassenbuch_entries_property_date
     ON kassenbuch_entries (property_id, entry_date);
+
+-- Non-invoice papers about a property that aren't a cost_entries line item and
+-- aren't a generated tenant statement (billing_run_statements already covers
+-- those) -- WEG Jahresabrechnung/Hausgeld statements, Grundsteuerbescheide,
+-- insurance policies, correspondence. Stored on disk under
+-- data/documents/<property_id>/<category>/, mirroring the
+-- data/generated/<property_id>/<year>/ convention scripts/run_billing.py already
+-- uses, so every property's paperwork lives at a predictable path.
+CREATE TABLE IF NOT EXISTS property_documents (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    property_id INTEGER NOT NULL REFERENCES properties (id) ON DELETE RESTRICT,
+    unit_id INTEGER REFERENCES units (id) ON DELETE RESTRICT,
+    category TEXT NOT NULL CHECK (
+        category IN (
+            'hausverwaltung', 'grundsteuer', 'versicherung', 'behoerde', 'sonstige'
+        )
+    ),
+    title TEXT NOT NULL,
+    billing_year INTEGER,
+    file_path TEXT NOT NULL,
+    notes TEXT,
+    uploaded_by TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_property_documents_property
+    ON property_documents (property_id, category);

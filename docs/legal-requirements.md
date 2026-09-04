@@ -62,10 +62,18 @@ rather than at Abrechnung time.
   assumed globally — the data model needs a per-contract (or per-property, with
   per-contract override) key configuration.
 
-**Garages/Stellplätze:** typically billed separately from the apartment (own small
-cost pool: possibly none, or shared lighting/cleaning of the garage area), using
-their own area or per-unit key — do not fold garage costs into the apartment
-Wohnfläche pool unless the contract says so.
+**Garages/Stellplätze:** billed separately from the apartment, own small cost pool.
+Chargeability is **contract-driven, not category-driven** — a cost type is only
+apportionable to a garage tenant if the garage Mietvertrag itself names it (either
+itemized or by explicit reference to § 2 BetrKV); a generic clause isn't enough.
+Typical items actually incurred: Grundsteuer (the garage's share of property tax),
+Beleuchtung (courtyard/driveway lighting), Entwässerung (rainwater drainage — this
+can apply even with no water *supply* connection, since it covers surface runoff,
+not a tap), and cleaning of the garage area. Typically absent: Wasserversorgung (no
+supply connection), heating (unheated). Standard distribution key is **per parking
+space (Stellplatzanzahl)**, not Wohnfläche — do not fold garage costs into the
+apartment Wohnfläche pool, and do not assume a fixed list of chargeable types
+without checking the individual garage contract.
 
 ## 4. Heating & hot water (HeizkostenV)
 
