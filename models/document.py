@@ -3,7 +3,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Literal
 
-DocumentCategory = Literal["hausverwaltung", "grundsteuer", "versicherung", "behoerde", "sonstige"]
+DocumentCategory = Literal[
+    "hausverwaltung", "grundsteuer", "versicherung", "behoerde", "mietvertrag", "sonstige"
+]
 
 
 @dataclass(frozen=True)

@@ -577,7 +577,14 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument(
         "--category",
         required=True,
-        choices=["hausverwaltung", "grundsteuer", "versicherung", "behoerde", "sonstige"],
+        choices=[
+            "hausverwaltung",
+            "grundsteuer",
+            "versicherung",
+            "behoerde",
+            "mietvertrag",
+            "sonstige",
+        ],
     )
     p.add_argument("--file", required=True, help="path to the document to file away")
     p.add_argument("--title", help="default: the file's name")
@@ -589,7 +596,14 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--property-id", type=int, required=True)
     p.add_argument(
         "--category",
-        choices=["hausverwaltung", "grundsteuer", "versicherung", "behoerde", "sonstige"],
+        choices=[
+            "hausverwaltung",
+            "grundsteuer",
+            "versicherung",
+            "behoerde",
+            "mietvertrag",
+            "sonstige",
+        ],
     )
     p.set_defaults(func=cmd_list_documents)
 

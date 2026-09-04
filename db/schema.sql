@@ -310,7 +310,7 @@ CREATE TABLE IF NOT EXISTS property_documents (
     unit_id INTEGER REFERENCES units (id) ON DELETE RESTRICT,
     category TEXT NOT NULL CHECK (
         category IN (
-            'hausverwaltung', 'grundsteuer', 'versicherung', 'behoerde', 'sonstige'
+            'hausverwaltung', 'grundsteuer', 'versicherung', 'behoerde', 'mietvertrag', 'sonstige'
         )
     ),
     title TEXT NOT NULL,
