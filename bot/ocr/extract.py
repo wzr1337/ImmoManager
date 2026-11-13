@@ -1,5 +1,5 @@
-"""One-shot invoice extraction via the plain Anthropic Messages API -- not the
-Agent SDK. A single vision call per invoice (CLAUDE.md: minimize LLM calls, one
+"""One-shot invoice extraction via the Anthropic Messages API on AWS Bedrock (EU
+inference profile, so tenant data stays in the EU) -- not the Agent SDK. A single vision call per invoice (CLAUDE.md: minimize LLM calls, one
 extraction call per invoice, not per property/tenant/statement), forced tool use for
 a strict JSON-shaped result. Deliberately lightweight for a Raspberry Pi: no
 subprocess, no agentic loop, no larger system prompt than this one task needs."""
@@ -16,7 +16,6 @@ import anthropic
 from bot.ocr.prompts import EXTRACT_INVOICE_TOOL, EXTRACTION_SYSTEM_PROMPT
 
 PDF_MEDIA_TYPE = "application/pdf"
-MODEL = "claude-sonnet-5"  # pinned explicitly -- never let the SDK default drift
 
 
 @dataclass(frozen=True)
@@ -32,12 +31,16 @@ class ExtractionResult:
 
 
 def extract_invoice(
-    *, api_key: str, image_bytes_list: list[bytes], media_type: str = "image/jpeg"
+    *,
+    model_id: str,
+    aws_region: str,
+    image_bytes_list: list[bytes],
+    media_type: str = "image/jpeg",
 ) -> ExtractionResult:
     """`image_bytes_list` holds one entry per page of a (possibly multi-page)
     invoice, all sent in a single call -- see bot/handlers/invoice_intake.py's
     media_group buffering. With media_type application/pdf it holds one whole PDF."""
-    client = anthropic.Anthropic(api_key=api_key)
+    client = anthropic.AnthropicBedrock(aws_region=aws_region)
 
     block_type = "document" if media_type == PDF_MEDIA_TYPE else "image"
     content = [
@@ -54,7 +57,7 @@ def extract_invoice(
     content.append({"type": "text", "text": "Extract the invoice data from the document above."})
 
     response = client.messages.create(
-        model=MODEL,
+        model=model_id,
         max_tokens=1024,
         system=EXTRACTION_SYSTEM_PROMPT,
         tools=[EXTRACT_INVOICE_TOOL],

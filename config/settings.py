@@ -7,6 +7,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
+DEFAULT_BEDROCK_MODEL_ID = "eu.anthropic.claude-sonnet-4-6"
 
 
 def _load_dotenv_if_present() -> None:
@@ -21,7 +22,8 @@ def _load_dotenv_if_present() -> None:
 class Settings:
     telegram_bot_token: str | None
     telegram_allowed_chat_ids: frozenset[int]
-    anthropic_api_key: str | None
+    bedrock_model_id: str
+    aws_region: str
     db_path: Path
     data_dir: Path
     invoices_dir: Path = field(init=False)
@@ -51,7 +53,8 @@ def load_settings() -> Settings:
     return Settings(
         telegram_bot_token=os.environ.get("TELEGRAM_BOT_TOKEN") or None,
         telegram_allowed_chat_ids=_parse_chat_ids(os.environ.get("TELEGRAM_ALLOWED_CHAT_IDS")),
-        anthropic_api_key=os.environ.get("ANTHROPIC_API_KEY") or None,
+        bedrock_model_id=os.environ.get("BEDROCK_MODEL_ID") or DEFAULT_BEDROCK_MODEL_ID,
+        aws_region=os.environ.get("AWS_REGION") or "eu-central-1",
         db_path=db_path,
         data_dir=data_dir,
     )

@@ -22,7 +22,7 @@ def _mock_response(tool_input: dict):
 
 
 class TestExtractInvoice:
-    @patch("bot.ocr.extract.anthropic.Anthropic")
+    @patch("bot.ocr.extract.anthropic.AnthropicBedrock")
     def test_parses_well_formed_response(self, mock_anthropic_cls):
         mock_client = MagicMock()
         mock_client.messages.create.return_value = _mock_response(
@@ -38,7 +38,7 @@ class TestExtractInvoice:
         )
         mock_anthropic_cls.return_value = mock_client
 
-        result = extract_invoice(api_key="fake", image_bytes_list=[b"fakejpegbytes"])
+        result = extract_invoice(model_id="m", aws_region="r", image_bytes_list=[b"fakejpegbytes"])
 
         assert result.vendor == "Stadt Calberlah"
         assert result.amount == Decimal("812.21")
@@ -46,7 +46,7 @@ class TestExtractInvoice:
         assert result.suggested_cost_type == 1
         assert result.confidence == "high"
 
-    @patch("bot.ocr.extract.anthropic.Anthropic")
+    @patch("bot.ocr.extract.anthropic.AnthropicBedrock")
     def test_converts_german_decimal_comma(self, mock_anthropic_cls):
         mock_client = MagicMock()
         mock_client.messages.create.return_value = _mock_response(
@@ -54,13 +54,13 @@ class TestExtractInvoice:
         )
         mock_anthropic_cls.return_value = mock_client
 
-        result = extract_invoice(api_key="fake", image_bytes_list=[b"x"])
+        result = extract_invoice(model_id="m", aws_region="r", image_bytes_list=[b"x"])
 
         # "1.234,56" -> naive comma->dot replace gives "1.234.56", which is not a
         # valid Decimal -- must not silently produce a wrong number.
         assert result.amount is None or result.confidence == "medium"
 
-    @patch("bot.ocr.extract.anthropic.Anthropic")
+    @patch("bot.ocr.extract.anthropic.AnthropicBedrock")
     def test_unparseable_amount_becomes_none_not_a_guess(self, mock_anthropic_cls):
         mock_client = MagicMock()
         mock_client.messages.create.return_value = _mock_response(
@@ -68,16 +68,16 @@ class TestExtractInvoice:
         )
         mock_anthropic_cls.return_value = mock_client
 
-        result = extract_invoice(api_key="fake", image_bytes_list=[b"x"])
+        result = extract_invoice(model_id="m", aws_region="r", image_bytes_list=[b"x"])
         assert result.amount is None
 
-    @patch("bot.ocr.extract.anthropic.Anthropic")
+    @patch("bot.ocr.extract.anthropic.AnthropicBedrock")
     def test_missing_fields_default_safely(self, mock_anthropic_cls):
         mock_client = MagicMock()
         mock_client.messages.create.return_value = _mock_response({"confidence": "low"})
         mock_anthropic_cls.return_value = mock_client
 
-        result = extract_invoice(api_key="fake", image_bytes_list=[b"x"])
+        result = extract_invoice(model_id="m", aws_region="r", image_bytes_list=[b"x"])
 
         assert result.vendor is None
         assert result.amount is None
@@ -85,7 +85,7 @@ class TestExtractInvoice:
         assert result.suggested_cost_type is None
         assert result.likely_non_apportionable is False
 
-    @patch("bot.ocr.extract.anthropic.Anthropic")
+    @patch("bot.ocr.extract.anthropic.AnthropicBedrock")
     def test_invalid_date_becomes_none(self, mock_anthropic_cls):
         mock_client = MagicMock()
         mock_client.messages.create.return_value = _mock_response(
@@ -93,44 +93,47 @@ class TestExtractInvoice:
         )
         mock_anthropic_cls.return_value = mock_client
 
-        result = extract_invoice(api_key="fake", image_bytes_list=[b"x"])
+        result = extract_invoice(model_id="m", aws_region="r", image_bytes_list=[b"x"])
         assert result.invoice_date is None
 
-    @patch("bot.ocr.extract.anthropic.Anthropic")
-    def test_pins_model_and_forces_tool_choice(self, mock_anthropic_cls):
+    @patch("bot.ocr.extract.anthropic.AnthropicBedrock")
+    def test_uses_given_model_and_forces_tool_choice(self, mock_anthropic_cls):
         mock_client = MagicMock()
         mock_client.messages.create.return_value = _mock_response({"confidence": "low"})
         mock_anthropic_cls.return_value = mock_client
 
-        extract_invoice(api_key="fake", image_bytes_list=[b"x"])
+        extract_invoice(model_id="m", aws_region="r", image_bytes_list=[b"x"])
 
         _, kwargs = mock_client.messages.create.call_args
-        assert kwargs["model"] == "claude-sonnet-5"
+        assert kwargs["model"] == "m"
         assert kwargs["tool_choice"] == {"type": "tool", "name": "extract_invoice"}
 
 
 class TestExtractInvoicePdf:
-    @patch("bot.ocr.extract.anthropic.Anthropic")
+    @patch("bot.ocr.extract.anthropic.AnthropicBedrock")
     def test_pdf_is_sent_as_document_block(self, mock_anthropic_cls):
         mock_client = MagicMock()
         mock_client.messages.create.return_value = _mock_response({"confidence": "high"})
         mock_anthropic_cls.return_value = mock_client
 
         extract_invoice(
-            api_key="fake", image_bytes_list=[b"%PDF-1.7"], media_type="application/pdf"
+            model_id="m",
+            aws_region="r",
+            image_bytes_list=[b"%PDF-1.7"],
+            media_type="application/pdf",
         )
 
         block = mock_client.messages.create.call_args.kwargs["messages"][0]["content"][0]
         assert block["type"] == "document"
         assert block["source"]["media_type"] == "application/pdf"
 
-    @patch("bot.ocr.extract.anthropic.Anthropic")
+    @patch("bot.ocr.extract.anthropic.AnthropicBedrock")
     def test_images_still_sent_as_image_blocks(self, mock_anthropic_cls):
         mock_client = MagicMock()
         mock_client.messages.create.return_value = _mock_response({"confidence": "high"})
         mock_anthropic_cls.return_value = mock_client
 
-        extract_invoice(api_key="fake", image_bytes_list=[b"x"])
+        extract_invoice(model_id="m", aws_region="r", image_bytes_list=[b"x"])
 
         block = mock_client.messages.create.call_args.kwargs["messages"][0]["content"][0]
         assert block["type"] == "image"

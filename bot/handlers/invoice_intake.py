@@ -82,17 +82,11 @@ async def _process_invoice(
     update: Update, context: ContextTypes.DEFAULT_TYPE, file_paths: list
 ) -> int:
     settings = get_settings(context)
-    if not settings.anthropic_api_key:
-        await update.message.reply_text(
-            "ANTHROPIC_API_KEY not configured -- can't extract invoice data. "
-            "Ask the landlord to set it up, or use the CLI to enter this invoice manually."
-        )
-        return ConversationHandler.END
-
     status_msg = await update.message.reply_text("Reading invoice...")
     try:
         result = extract_invoice(
-            api_key=settings.anthropic_api_key,
+            model_id=settings.bedrock_model_id,
+            aws_region=settings.aws_region,
             image_bytes_list=[p.read_bytes() for p in file_paths],
             media_type=PDF_MEDIA_TYPE if file_paths[0].suffix == ".pdf" else "image/jpeg",
         )
