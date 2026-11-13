@@ -107,3 +107,30 @@ class TestExtractInvoice:
         _, kwargs = mock_client.messages.create.call_args
         assert kwargs["model"] == "claude-sonnet-5"
         assert kwargs["tool_choice"] == {"type": "tool", "name": "extract_invoice"}
+
+
+class TestExtractInvoicePdf:
+    @patch("bot.ocr.extract.anthropic.Anthropic")
+    def test_pdf_is_sent_as_document_block(self, mock_anthropic_cls):
+        mock_client = MagicMock()
+        mock_client.messages.create.return_value = _mock_response({"confidence": "high"})
+        mock_anthropic_cls.return_value = mock_client
+
+        extract_invoice(
+            api_key="fake", image_bytes_list=[b"%PDF-1.7"], media_type="application/pdf"
+        )
+
+        block = mock_client.messages.create.call_args.kwargs["messages"][0]["content"][0]
+        assert block["type"] == "document"
+        assert block["source"]["media_type"] == "application/pdf"
+
+    @patch("bot.ocr.extract.anthropic.Anthropic")
+    def test_images_still_sent_as_image_blocks(self, mock_anthropic_cls):
+        mock_client = MagicMock()
+        mock_client.messages.create.return_value = _mock_response({"confidence": "high"})
+        mock_anthropic_cls.return_value = mock_client
+
+        extract_invoice(api_key="fake", image_bytes_list=[b"x"])
+
+        block = mock_client.messages.create.call_args.kwargs["messages"][0]["content"][0]
+        assert block["type"] == "image"

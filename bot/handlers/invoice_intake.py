@@ -23,13 +23,15 @@ from telegram.ext import (
 )
 
 from bot.context import get_conn, get_settings
-from bot.ocr.extract import ExtractionResult, extract_invoice
+from bot.ocr.extract import PDF_MEDIA_TYPE, ExtractionResult, extract_invoice
 from config.cost_types import all_cost_type_choices, is_apportionable_code
 from db.repositories import invoice_repo, property_repo
 
 CHOOSE_PROPERTY, CHOOSE_COST_TYPE, CONFIRM, EDIT_AMOUNT = range(4)
 
 _MEDIA_GROUP_DEBOUNCE_SECONDS = 1.5
+# Telegram Bot API: bots cannot download files larger than 20 MB via getFile.
+_TELEGRAM_DOWNLOAD_LIMIT_BYTES = 20 * 1024 * 1024
 
 
 async def on_photo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -58,6 +60,24 @@ async def on_photo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     return ConversationHandler.END  # this update's pages already queued by the first handler
 
 
+async def on_pdf(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    document = update.message.document
+    if document.file_size is not None and document.file_size > _TELEGRAM_DOWNLOAD_LIMIT_BYTES:
+        await update.message.reply_text(
+            "This PDF is larger than 20 MB, which Telegram does not let bots download. "
+            "Compress it, or send photos of the pages instead."
+        )
+        return ConversationHandler.END
+
+    settings = get_settings(context)
+    file = await document.get_file()
+    incoming_dir = settings.invoices_dir / "incoming"
+    incoming_dir.mkdir(parents=True, exist_ok=True)
+    file_path = incoming_dir / f"{uuid.uuid4()}.pdf"
+    await file.download_to_drive(str(file_path))
+    return await _process_invoice(update, context, [file_path])
+
+
 async def _process_invoice(
     update: Update, context: ContextTypes.DEFAULT_TYPE, file_paths: list
 ) -> int:
@@ -74,6 +94,7 @@ async def _process_invoice(
         result = extract_invoice(
             api_key=settings.anthropic_api_key,
             image_bytes_list=[p.read_bytes() for p in file_paths],
+            media_type=PDF_MEDIA_TYPE if file_paths[0].suffix == ".pdf" else "image/jpeg",
         )
     # Any failure here (timeout, API error, bad response shape) should degrade to
     # Retry/Enter-manually, not crash the bot -- a broad catch is deliberate at this
@@ -311,7 +332,10 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 
 
 invoice_conversation = ConversationHandler(
-    entry_points=[MessageHandler(filters.PHOTO, on_photo)],
+    entry_points=[
+        MessageHandler(filters.PHOTO, on_photo),
+        MessageHandler(filters.Document.PDF, on_pdf),
+    ],
     states={
         CHOOSE_PROPERTY: [CallbackQueryHandler(receive_property, pattern=r"^invprop:\d+$")],
         CHOOSE_COST_TYPE: [CallbackQueryHandler(receive_cost_type, pattern=r"^invcost:\d+$")],

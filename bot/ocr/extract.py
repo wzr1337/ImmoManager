@@ -15,6 +15,7 @@ import anthropic
 
 from bot.ocr.prompts import EXTRACT_INVOICE_TOOL, EXTRACTION_SYSTEM_PROMPT
 
+PDF_MEDIA_TYPE = "application/pdf"
 MODEL = "claude-sonnet-5"  # pinned explicitly -- never let the SDK default drift
 
 
@@ -35,12 +36,13 @@ def extract_invoice(
 ) -> ExtractionResult:
     """`image_bytes_list` holds one entry per page of a (possibly multi-page)
     invoice, all sent in a single call -- see bot/handlers/invoice_intake.py's
-    media_group buffering."""
+    media_group buffering. With media_type application/pdf it holds one whole PDF."""
     client = anthropic.Anthropic(api_key=api_key)
 
+    block_type = "document" if media_type == PDF_MEDIA_TYPE else "image"
     content = [
         {
-            "type": "image",
+            "type": block_type,
             "source": {
                 "type": "base64",
                 "media_type": media_type,
@@ -49,7 +51,7 @@ def extract_invoice(
         }
         for image_bytes in image_bytes_list
     ]
-    content.append({"type": "text", "text": "Extract the invoice data from the image(s) above."})
+    content.append({"type": "text", "text": "Extract the invoice data from the document above."})
 
     response = client.messages.create(
         model=MODEL,
