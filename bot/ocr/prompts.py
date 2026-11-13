@@ -41,10 +41,11 @@ EXTRACT_INVOICE_TOOL = {
                 "description": (
                     "Best-guess § 2 BetrKV cost type code (1-17) this invoice likely belongs "
                     "to, or null if unclear. 1=Grundsteuer, 2=Wasserversorgung, "
-                    "3=Entwaesserung, 4=Heizung, 5=Warmwasser, 7=Aufzug, "
+                    "3=Entwaesserung, 4=Heizung, 5=Warmwasser, 6=Heizung+Warmwasser verbunden, 7=Aufzug, "
                     "8=Strassenreinigung/Muellabfuhr, 9=Gebaeudereinigung/Ungeziefer, "
                     "10=Gartenpflege, 11=Beleuchtung, 12=Schornsteinreinigung, "
-                    "13=Versicherung, 14=Hauswart, 16=Waeschepflege, 17=Sonstige. "
+                    "13=Versicherung, 14=Hauswart, 15=Gemeinschaftsantenne/Kabel/SAT, "
+                    "16=Waeschepflege, 17=Sonstige. "
                     "If this looks like a repair/maintenance invoice (Reparatur, "
                     "Instandhaltung) rather than a recurring operating cost, set this to "
                     "null and set likely_non_apportionable to true instead."
