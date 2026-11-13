@@ -168,6 +168,20 @@ type, per tenant.
   building Wohnfläche, and — if HeizkostenV items are included — the consumption
   values and meter IDs feeding the calculation.
 
+## 9. Mieterhöhung bis zur Vergleichsmiete (§§ 558, 558b BGB)
+
+Implemented in `calc_engine/rent_increase.py`. Applies to Nettokaltmiete only; Staffel-
+and Indexmiete (§§ 557a/557b) follow other rules and are not covered.
+
+- Needs the tenant's Zustimmung, Textform, with Begründung (Mietspiegel, Vergleichsmieten
+  or Gutachten).
+- Effective from the start of the third calendar month after Zugang (§ 558b Abs. 1);
+  the tenant may consider until the end of the month after next (§ 558b Abs. 2).
+- Sperrfrist: rent unchanged for 15 months at the effective date, request earliest one
+  year after the last increase (§ 558 Abs. 1). Erhöhungen under §§ 559-560 do not count.
+- Kappungsgrenze: at most 20 % in three years, 15 % where a Landesverordnung applies
+  (§ 558 Abs. 3). Never above the ortsübliche Vergleichsmiete.
+
 ## Sources
 
 - [Betriebskostenverordnung (BetrKV) Aktuelle Fassung 2026](https://deutschesmietrecht.de/betriebskostenverordnung/11-betriebskostenverordnung.html)
