@@ -7,6 +7,7 @@ dependencies = [
     "python-telegram-bot>=21.0",
     "anthropic[bedrock]>=0.40.0",
     "docxtpl>=0.18.0",
+    "python-docx>=1.0.0",
     "python-dotenv>=1.0.0",
     "PyYAML>=6.0",
 ]
@@ -26,13 +27,18 @@ build-backend = "setuptools.build_meta"
 [tool.setuptools.packages.find]
 include = ["config*", "models*", "db*", "calc_engine*", "docgen*", "bot*", "scripts*"]
 
+[tool.setuptools.package-data]
+"docgen.din5008" = ["vorlage.docx"]
+
 [tool.black]
 line-length = 100
 target-version = ["py311"]
+extend-exclude = "docgen/din5008"
 
 [tool.ruff]
 line-length = 100
 target-version = "py311"
+extend-exclude = ["docgen/din5008"]
 
 [tool.ruff.lint]
 # FURB157: we deliberately always quote Decimal literals (Decimal("50"), not

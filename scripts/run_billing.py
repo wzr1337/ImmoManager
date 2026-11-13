@@ -38,7 +38,7 @@ from db.repositories import (
     property_repo,
     tenant_repo,
 )
-from docgen import context_builder, render
+from docgen import brief, context_builder, render
 from docgen.render import slug
 
 
@@ -51,7 +51,13 @@ def _decimal_default(obj):
 
 
 def run(
-    conn, *, property_id: int, billing_year: int, output_dir: Path, template_path: Path
+    conn,
+    *,
+    property_id: int,
+    billing_year: int,
+    output_dir: Path,
+    template_path: Path,
+    din_letter: bool = False,
 ) -> None:
     landlord = landlord_repo.get(conn)
     if landlord is None:
@@ -164,6 +170,13 @@ def run(
             document_type="betriebskosten",
         )
 
+        if din_letter:
+            letter_path = brief.render_brief(
+                brief.abrechnung_anschreiben(statement, landlord, today=date.today()),
+                output_path.with_name(f"{output_path.stem}_anschreiben.docx"),
+            )
+            print(f"  Anschreiben: {letter_path.name}")
+
         billing_repo.save_statement(
             conn,
             billing_run_id=run_id,
@@ -201,6 +214,11 @@ def main() -> None:
         / "templates"
         / "betriebskostenabrechnung.docx",
     )
+    parser.add_argument(
+        "--din-letter",
+        action="store_true",
+        help="also write a DIN-5008 Anschreiben next to each statement",
+    )
     args = parser.parse_args()
 
     settings = load_settings()
@@ -212,6 +230,7 @@ def main() -> None:
             billing_year=args.billing_year,
             output_dir=settings.generated_dir / str(args.property_id) / str(args.billing_year),
             template_path=args.template,
+            din_letter=args.din_letter,
         )
     finally:
         conn.close()
