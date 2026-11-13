@@ -19,6 +19,13 @@ PDF_MEDIA_TYPE = "application/pdf"
 
 
 @dataclass(frozen=True)
+class LineItem:
+    description: str
+    amount: Decimal
+    suggested_cost_type: int | None
+
+
+@dataclass(frozen=True)
 class ExtractionResult:
     vendor: str | None
     amount: Decimal | None
@@ -28,6 +35,8 @@ class ExtractionResult:
     likely_non_apportionable: bool
     confidence: str
     raw_response_json: str
+    billing_year: int | None = None
+    line_items: tuple[LineItem, ...] = ()
 
 
 def extract_invoice(
@@ -58,7 +67,7 @@ def extract_invoice(
 
     response = client.messages.create(
         model=model_id,
-        max_tokens=1024,
+        max_tokens=4096,
         system=EXTRACTION_SYSTEM_PROMPT,
         tools=[EXTRACT_INVOICE_TOOL],
         tool_choice={"type": "tool", "name": "extract_invoice"},
@@ -85,6 +94,8 @@ def _parse_tool_input(data: dict, *, raw_response_json: str) -> ExtractionResult
             invoice_date = None
 
     return ExtractionResult(
+        billing_year=data.get("billing_year"),
+        line_items=_parse_line_items(data.get("line_items")),
         vendor=data.get("vendor"),
         amount=amount,
         currency=data.get("currency"),
@@ -94,3 +105,15 @@ def _parse_tool_input(data: dict, *, raw_response_json: str) -> ExtractionResult
         confidence=data.get("confidence", "low"),
         raw_response_json=raw_response_json,
     )
+
+
+def _parse_line_items(raw_items: list | None) -> tuple[LineItem, ...]:
+    items = []
+    for raw in raw_items or []:
+        try:
+            amount = Decimal(str(raw["amount"]).replace(",", "."))
+            description = raw["description"]
+        except (KeyError, InvalidOperation):
+            continue
+        items.append(LineItem(description, amount, raw.get("suggested_cost_type")))
+    return tuple(items)

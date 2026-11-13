@@ -8,7 +8,15 @@ EXTRACTION_SYSTEM_PROMPT = (
     "You extract structured data from a scanned German rental-property invoice "
     "(Rechnung/Beleg). Extract exactly what's printed -- do not calculate, estimate, "
     "or invent any value. If a field isn't legible or isn't present, omit it or set "
-    "confidence low; never guess."
+    "confidence low; never guess.\n\n"
+    "Some documents are multi-position cost statements (Jahresabrechnung, "
+    "Nebenkostenabrechnung, WEG-Abrechnung) listing many cost positions. For those, do "
+    "not report a single total: fill line_items with one entry per cost position, using "
+    "the amount in the column that shows this unit's share (Betrag der Einheit), as a "
+    "positive number, and leave amount unset. Include both umlagefaehige and "
+    "nicht umlagefaehige positions; leave out income (Einnahmen), subtotals, totals, "
+    "balances (Saldo/Abrechnungsspitze) and per-unit special costs of other units. Set "
+    "billing_year to the year the statement covers."
 )
 
 EXTRACT_INVOICE_TOOL = {
@@ -49,6 +57,36 @@ EXTRACT_INVOICE_TOOL = {
                     "that is NOT apportionable to tenants under BetrKV (e.g. Reparatur, "
                     "Instandhaltung, Modernisierung) rather than a recurring operating cost."
                 ),
+            },
+            "billing_year": {
+                "type": "integer",
+                "description": "Calendar year the statement covers, for multi-position documents.",
+            },
+            "line_items": {
+                "type": "array",
+                "description": "One entry per cost position of a multi-position statement. "
+                "Omit for an ordinary single invoice.",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "description": {
+                            "type": "string",
+                            "description": "Position name exactly as printed.",
+                        },
+                        "amount": {
+                            "type": "string",
+                            "description": "This unit's share as a plain positive decimal "
+                            "string, e.g. '198.53'.",
+                        },
+                        "suggested_cost_type": {
+                            "type": ["integer", "null"],
+                            "description": "Same 1-17 BetrKV code scale as the top-level "
+                            "field, or null if the position is not apportionable "
+                            "(Verwaltergebuehr, Ruecklage, Bankgebuehren, repairs).",
+                        },
+                    },
+                    "required": ["description", "amount"],
+                },
             },
             "confidence": {
                 "type": "string",

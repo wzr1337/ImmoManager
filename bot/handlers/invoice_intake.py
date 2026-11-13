@@ -23,8 +23,13 @@ from telegram.ext import (
 )
 
 from bot.context import get_conn, get_settings
-from bot.ocr.extract import PDF_MEDIA_TYPE, ExtractionResult, extract_invoice
-from config.cost_types import all_cost_type_choices, is_apportionable_code
+from bot.ocr.extract import PDF_MEDIA_TYPE, ExtractionResult, LineItem, extract_invoice
+from config.cost_types import (
+    NichtUmlagefaehigCostType,
+    all_cost_type_choices,
+    is_apportionable_code,
+    label_for,
+)
 from db.repositories import invoice_repo, property_repo
 
 CHOOSE_PROPERTY, CHOOSE_COST_TYPE, CONFIRM, EDIT_AMOUNT = range(4)
@@ -115,6 +120,11 @@ async def _process_invoice(
         "likely_non_apportionable": result.likely_non_apportionable,
         "confidence": result.confidence,
         "raw_response_json": result.raw_response_json,
+        "billing_year": result.billing_year,
+        "line_items": [
+            {"description": i.description, "amount": str(i.amount), "cost_type": code}
+            for i, code in resolve_line_item_codes(result.line_items)
+        ],
     }
 
     summary = _format_extraction(result)
@@ -122,7 +132,17 @@ async def _process_invoice(
     return await _show_property_choices(update, context)
 
 
+def resolve_line_item_codes(items: tuple[LineItem, ...]) -> list[tuple[LineItem, int]]:
+    # A position the model could not map to a BetrKV type stays with the landlord.
+    return [
+        (i, i.suggested_cost_type or NichtUmlagefaehigCostType.SONSTIGE_NICHT_UMLAGEFAEHIG.value)
+        for i in items
+    ]
+
+
 def _format_extraction(result: ExtractionResult) -> str:
+    if result.line_items:
+        return _format_line_items(result)
     lines = ["Extracted:"]
     lines.append(f"  Vendor: {result.vendor or '(unclear)'}")
     lines.append(f"  Amount: {result.amount if result.amount is not None else '(unclear)'}")
@@ -132,6 +152,14 @@ def _format_extraction(result: ExtractionResult) -> str:
     lines.append(f"  Confidence: {result.confidence}")
     if result.likely_non_apportionable:
         lines.append("  Note: looks like a repair/admin cost, likely not apportionable.")
+    return "\n".join(lines)
+
+
+def _format_line_items(result: ExtractionResult) -> str:
+    lines = [f"Statement with {len(result.line_items)} positions ({result.billing_year or '?'}):"]
+    for item, code in resolve_line_item_codes(result.line_items):
+        marker = "" if is_apportionable_code(code) else " (not apportionable)"
+        lines.append(f"  {item.description}: {item.amount} -- {label_for(code)}{marker}")
     return "\n".join(lines)
 
 
@@ -160,6 +188,19 @@ async def receive_property(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     await query.answer()
     property_id = int(query.data.split(":")[1])
     context.user_data["invoice"]["property_id"] = property_id
+
+    if context.user_data["invoice"].get("line_items"):
+        buttons = [
+            [
+                InlineKeyboardButton("Save all", callback_data="inv_confirm"),
+                InlineKeyboardButton("Cancel", callback_data="inv_cancel"),
+            ]
+        ]
+        await query.edit_message_text(
+            "Save every position above as its own cost entry?",
+            reply_markup=InlineKeyboardMarkup(buttons),
+        )
+        return CONFIRM
 
     suggested = context.user_data["invoice"].get("suggested_cost_type")
     likely_non_apportionable = context.user_data["invoice"].get("likely_non_apportionable")
@@ -267,16 +308,18 @@ async def _save_invoice(query, context: ContextTypes.DEFAULT_TYPE) -> int:
     inv = context.user_data["invoice"]
     settings = get_settings(context)
 
-    if not inv.get("amount"):
+    is_statement = bool(inv.get("line_items"))
+    if not is_statement and not inv.get("amount"):
         await query.edit_message_text("Amount is missing -- can't save. Use Edit amount first.")
         return CONFIRM
 
     property_id = inv["property_id"]
-    billing_year = (
-        date.fromisoformat(inv["invoice_date"]).year
-        if inv.get("invoice_date")
-        else date.today().year
-    )
+    if inv.get("billing_year"):
+        billing_year = inv["billing_year"]
+    elif inv.get("invoice_date"):
+        billing_year = date.fromisoformat(inv["invoice_date"]).year
+    else:
+        billing_year = date.today().year
 
     final_dir = settings.invoices_dir / str(property_id) / str(billing_year)
     final_dir.mkdir(parents=True, exist_ok=True)
@@ -287,6 +330,9 @@ async def _save_invoice(query, context: ContextTypes.DEFAULT_TYPE) -> int:
         if src.exists():
             src.rename(dst)
         saved_paths.append(str(dst))
+
+    if is_statement:
+        return await _save_statement_positions(query, context, billing_year, saved_paths)
 
     conn = get_conn(context)
     try:
@@ -314,6 +360,42 @@ async def _save_invoice(query, context: ContextTypes.DEFAULT_TYPE) -> int:
     running_total = totals.get(inv["cost_type"], Decimal(0))
     await query.edit_message_text(
         f"Saved. Running total for this cost type in {billing_year}: {running_total:.2f} EUR"
+    )
+    context.user_data.pop("invoice", None)
+    return ConversationHandler.END
+
+
+async def _save_statement_positions(
+    query, context: ContextTypes.DEFAULT_TYPE, billing_year: int, saved_paths: list[str]
+) -> int:
+    inv = context.user_data["invoice"]
+    conn = get_conn(context)
+    try:
+        for item in inv["line_items"]:
+            invoice_repo.create(
+                conn,
+                property_id=inv["property_id"],
+                cost_type_code=item["cost_type"],
+                billing_year=billing_year,
+                amount=Decimal(item["amount"]),
+                vendor_name=inv.get("vendor"),
+                invoice_date=(
+                    date.fromisoformat(inv["invoice_date"]) if inv.get("invoice_date") else None
+                ),
+                description=item["description"],
+                source_file_path=saved_paths[0] if saved_paths else None,
+                entry_method="telegram_ocr",
+                ocr_confidence={"high": 1.0, "medium": 0.6, "low": 0.3}.get(
+                    inv.get("confidence"), 0.3
+                ),
+                entered_by=str(query.from_user.id),
+            )
+    finally:
+        conn.close()
+
+    await query.edit_message_text(
+        f"Saved {len(inv['line_items'])} positions for {billing_year}. "
+        "Check the cost types against the contract's allow-list before running billing."
     )
     context.user_data.pop("invoice", None)
     return ConversationHandler.END

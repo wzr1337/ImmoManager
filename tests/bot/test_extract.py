@@ -137,3 +137,39 @@ class TestExtractInvoicePdf:
 
         block = mock_client.messages.create.call_args.kwargs["messages"][0]["content"][0]
         assert block["type"] == "image"
+
+
+class TestLineItems:
+    @patch("bot.ocr.extract.anthropic.AnthropicBedrock")
+    def test_parses_line_items_and_billing_year(self, mock_anthropic_cls):
+        mock_client = MagicMock()
+        mock_client.messages.create.return_value = _mock_response(
+            {
+                "confidence": "high",
+                "billing_year": 2025,
+                "line_items": [
+                    {"description": "Hausmeister", "amount": "157,65", "suggested_cost_type": 14},
+                    {"description": "Verwaltergebuehr", "amount": "324.87"},
+                    {"description": "kaputt", "amount": "n/a"},
+                ],
+            }
+        )
+        mock_anthropic_cls.return_value = mock_client
+
+        result = extract_invoice(model_id="m", aws_region="r", image_bytes_list=[b"x"])
+
+        assert result.billing_year == 2025
+        assert [(i.description, i.amount, i.suggested_cost_type) for i in result.line_items] == [
+            ("Hausmeister", Decimal("157.65"), 14),
+            ("Verwaltergebuehr", Decimal("324.87"), None),
+        ]
+
+    @patch("bot.ocr.extract.anthropic.AnthropicBedrock")
+    def test_plain_invoice_has_no_line_items(self, mock_anthropic_cls):
+        mock_client = MagicMock()
+        mock_client.messages.create.return_value = _mock_response({"confidence": "high"})
+        mock_anthropic_cls.return_value = mock_client
+
+        result = extract_invoice(model_id="m", aws_region="r", image_bytes_list=[b"x"])
+
+        assert result.line_items == ()
