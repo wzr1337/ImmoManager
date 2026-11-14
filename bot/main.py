@@ -14,7 +14,8 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from telegram import Update
-from telegram.ext import Application, ApplicationBuilder, TypeHandler
+from telegram.error import NetworkError
+from telegram.ext import Application, ApplicationBuilder, ContextTypes, TypeHandler
 
 from bot.auth import Whitelist, gatekeeper
 from bot.handlers.commands import CALLBACK_HANDLERS, COMMAND_HANDLERS
@@ -36,6 +37,17 @@ logging.getLogger("httpx").setLevel(logging.WARNING)
 logger = logging.getLogger(__name__)
 
 
+async def on_error(update: object, context: ContextTypes.DEFAULT_TYPE) -> None:
+    # Telegram regularly answers getUpdates with 502 Bad Gateway; the library retries,
+    # so a one-line warning is enough. Anything else is a real handler failure.
+    if isinstance(context.error, NetworkError):
+        logger.warning("Telegram network error: %s", context.error)
+        return
+    logger.error("Unhandled error in handler", exc_info=context.error)
+    if isinstance(update, Update) and update.effective_message:
+        await update.effective_message.reply_text("Something went wrong. See the bot log.")
+
+
 def build_application() -> Application:
     settings = load_settings()
 
@@ -51,6 +63,7 @@ def build_application() -> Application:
     # gatekeeper prevents any of the real handlers below from ever seeing an update
     # from a non-whitelisted chat.
     application.add_handler(TypeHandler(Update, gatekeeper), group=-1)
+    application.add_error_handler(on_error)
 
     for handler in COMMAND_HANDLERS:
         application.add_handler(handler)
