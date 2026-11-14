@@ -14,7 +14,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from telegram import Update
-from telegram.error import NetworkError
+from telegram.error import BadRequest, NetworkError
 from telegram.ext import Application, ApplicationBuilder, ContextTypes, TypeHandler
 
 from bot.auth import Whitelist, gatekeeper
@@ -39,8 +39,9 @@ logger = logging.getLogger(__name__)
 
 async def on_error(update: object, context: ContextTypes.DEFAULT_TYPE) -> None:
     # Telegram regularly answers getUpdates with 502 Bad Gateway; the library retries,
-    # so a one-line warning is enough. Anything else is a real handler failure.
-    if isinstance(context.error, NetworkError):
+    # so a one-line warning is enough. BadRequest subclasses NetworkError but means our
+    # own request was rejected; like any other exception it is a real handler failure.
+    if isinstance(context.error, NetworkError) and not isinstance(context.error, BadRequest):
         logger.warning("Telegram network error: %s", context.error)
         return
     logger.error("Unhandled error in handler", exc_info=context.error)
